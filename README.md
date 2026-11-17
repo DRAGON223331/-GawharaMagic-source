@@ -16,7 +16,7 @@ All new GawharaMagic abilities, weapon skills, and empty-hand elemental moves sp
 
 ## New skills
 
-- `Shift + Right Click` with an empty main hand: the selected element's base move.
+- Empty main hand, any of these trigger the selected element's base move: `Shift + Right Click` on a normal block, `Shift + Right Click` on a mob/player, double-tap `Shift`, or `/gwm m`. (Minecraft does not send a right-click-in-air event when the hand is empty, so it cannot work in the air.)
 - `Shift + Left Click` in the air with an empty main hand: Elemental Spin.
 - `Shift + F` with an empty main hand: Elemental Guard.
 - `/gmagic ultimate`: ultimate aura (unlocks at level 60 by default).
@@ -59,7 +59,7 @@ Run `mvn -B clean package`. The resulting JAR is `target/GawharaMagic.jar`.
 - `Shift + F` with an empty main hand: Elemental Guard.
 - `/gmagic ultimate`: team-oriented ultimate ability (default unlock level 60).
 - `/gmagic awaken`: Awakening form (default unlock level 100).
-- The element's regular empty-hand move works with `Shift + Right Click` in the air or on a normal non-interactable block. Use `/gwm m` as a direct fallback.
+- The element's regular empty-hand move works with `Shift + Right Click` on a normal non-interactable block or on a mob/player, or by double-tapping `Shift`. Use `/gwm m` as a direct fallback.
 - `/gmagic mana` displays the player's current and maximum AuraSkills mana.
 
 ### Additional systems

@@ -888,6 +888,45 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
         ability(p, w);
     }
 
+    // ماينكرافت لا يرسل حدث Right Click في الهواء واليد فاضية، لذلك نضيف طرقًا بديلة تعمل فعلًا:
+    // 1) Shift + Right Click على كائن (موب/لاعب)  2) الضغط على Shift مرتين بسرعة  3) الأمر /gmagic m
+    final Map<UUID, Long> lastSneakTap = new HashMap<>();
+
+    @EventHandler
+    public void onUnarmedEntityClick(org.bukkit.event.player.PlayerInteractEntityEvent e) {
+        if (e.getHand() != EquipmentSlot.HAND) return;
+        Player p = e.getPlayer();
+        if (!p.isSneaking() || p.getInventory().getItemInMainHand().getType() != Material.AIR) return;
+        if (e.getRightClicked() instanceof org.bukkit.inventory.Merchant) return;
+        Element el = getEl(p);
+        e.setCancelled(true);
+        if (el == null) {
+            p.sendActionBar(c("§cاختار قوة أولًا: /gmagic powers"));
+            openGui(p);
+            return;
+        }
+        unarmedAbility(p, el);
+    }
+
+    @EventHandler
+    public void onUnarmedDoubleSneak(org.bukkit.event.player.PlayerToggleSneakEvent e) {
+        if (!e.isSneaking()) return;
+        Player p = e.getPlayer();
+        if (p.getInventory().getItemInMainHand().getType() != Material.AIR) return;
+        long now = System.currentTimeMillis();
+        Long last = lastSneakTap.put(p.getUniqueId(), now);
+        if (last == null || now - last > 350L) return;
+        lastSneakTap.remove(p.getUniqueId());
+        Element el = getEl(p);
+        if (el == null) return;
+        unarmedAbility(p, el);
+    }
+
+    @EventHandler
+    public void onQuitClearSneak(org.bukkit.event.player.PlayerQuitEvent e) {
+        lastSneakTap.remove(e.getPlayer().getUniqueId());
+    }
+
     List<LivingEntity> near(Player p, double r) {
         List<LivingEntity> l = new ArrayList<>();
         for (Entity en : p.getNearbyEntities(r, r, r)) {
