@@ -865,7 +865,7 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
                     || act == org.bukkit.event.block.Action.RIGHT_CLICK_BLOCK;
             // دعم الضغط على الهواء أو على بلوك عادي؛ لا نعطّل فتح الصناديق والأبواب والأزرار.
             boolean safeBlockClick = act != org.bukkit.event.block.Action.RIGHT_CLICK_BLOCK
-                    || e.getClickedBlock() == null || !e.getClickedBlock().isInteractable();
+                    || e.getClickedBlock() == null || !e.getClickedBlock().getType().isInteractable();
             if (rightClick && safeBlockClick && p.isSneaking()) {
                 Element el = getEl(p);
                 e.setCancelled(true);
@@ -882,7 +882,7 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
         W w = info(held);
         if (w == null || !isValidWeapon(p, held)) return;
         if (act == org.bukkit.event.block.Action.RIGHT_CLICK_BLOCK
-                && e.getClickedBlock() != null && e.getClickedBlock().isInteractable()) return;
+                && e.getClickedBlock() != null && e.getClickedBlock().getType().isInteractable()) return;
         if (held.getType() == Material.BOW && !p.isSneaking()) return;
         e.setCancelled(true);
         ability(p, w);
