@@ -54,7 +54,7 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
     static final int MAX_LEVEL = 100;
     static final int TOTAL_TRIALS = 20;
     static final int[] FIRST_LEVELS = {0, 20, 60, 130, 250};
-    static final int[] SLOTS = {10, 11, 12, 14, 15, 16};
+    static final int[] SLOTS = {10, 11, 12, 13, 14, 15, 16, 19, 20, 21, 22, 23};
     static final String[] WNAMES = {"نصل", "فأس", "قوس", "سيف الغضب", "السيف الأسطوري"};
 
     enum TrialKind {
@@ -63,7 +63,8 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
         EARTH_STONE_MINED, EARTH_ORE_MINED, EARTH_CAVE,
         WIND_AIR, WIND_SPRINT, WIND_GLIDE,
         LIGHTNING_ROD, LIGHTNING_ROD_NEAR, LIGHTNING_REDSTONE,
-        SHADOW_DARK, SHADOW_SNEAK_DARK
+        SHADOW_DARK, SHADOW_SNEAK_DARK,
+        ELEMENT_MASTERY
     }
 
     record Trial(TrialKind kind, int goal, String clue) {}
@@ -82,6 +83,7 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
     boolean dirty = false;
     boolean inAbility = false;
     final Map<UUID, Long> cd = new HashMap<>();
+    AdvancedSystems advanced;
 
     static Component c(String s) {
         return LegacyComponentSerializer.legacySection().deserialize(s).decoration(TextDecoration.ITALIC, false);
@@ -94,9 +96,12 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
         OWNER_KEY = new NamespacedKey(this, "weapon_owner");
         GENERATION_KEY = new NamespacedKey(this, "weapon_generation");
         getDataFolder().mkdirs();
+        saveDefaultConfig();
         dataFile = new File(getDataFolder(), "data.yml");
         data = YamlConfiguration.loadConfiguration(dataFile);
         getServer().getPluginManager().registerEvents(this, this);
+        advanced = new AdvancedSystems(this);
+        advanced.enable();
         getCommand("gmagic").setExecutor(this);
         getCommand("grestore").setExecutor(this);
 
@@ -135,7 +140,10 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
     }
 
     @Override
-    public void onDisable() { save(); }
+    public void onDisable() {
+        if (advanced != null) advanced.shutdown();
+        save();
+    }
 
     void save() {
         try { data.save(dataFile); dirty = false; }
@@ -153,6 +161,14 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
 
     int magicGeneration(Player p) {
         return data.getInt("magicGeneration." + p.getUniqueId(), 0);
+    }
+
+    // The six new schools are intentionally focused on empty-hand movement skills.
+    boolean isUnarmedOnly(Element el) {
+        return switch (el) {
+            case ICE, METAL, NATURE, LIGHT, SOUND, CRYSTAL -> true;
+            default -> false;
+        };
     }
 
     int pts(Player p) { return data.getInt(playerPath(p) + ".points", 0); }
@@ -254,6 +270,48 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
                 default -> new Trial(TrialKind.SHADOW_SNEAK_DARK, 8 + difficulty * 2,
                         "اجعل خطواتك همسًا، ولا تترك للضوء أثرًا يصل إليك.");
             };
+            case ICE -> new Trial(TrialKind.ELEMENT_MASTERY, 2 + difficulty,
+                    switch (phase) {
+                        case 0 -> "اجعل أنفاسك كالصقيع، وأطلق قبضة الجليد دون سلاح عدة مرات.";
+                        case 1 -> "لا تكسر الجليد... دع حركتك نفسها تترك أثر الشتاء.";
+                        case 2 -> "حين يهدأ العالم، أطلق موجة البرد من جديد.";
+                        default -> "أثبت أن إرادتك أبرد من أقسى عاصفة.";
+                    });
+            case METAL -> new Trial(TrialKind.ELEMENT_MASTERY, 2 + difficulty,
+                    switch (phase) {
+                        case 0 -> "اجعل جسدك درعًا، وكرر حركة الفولاذ بيدين فارغتين.";
+                        case 1 -> "صلابة المعدن لا تكفي؛ أتقن ضربة الفولاذ مرة بعد مرة.";
+                        case 2 -> "دع صدى الدرع يعلن أن المعدن اختارك.";
+                        default -> "اختبر ثباتك، وأطلق قوة المعدن من جديد.";
+                    });
+            case NATURE -> new Trial(TrialKind.ELEMENT_MASTERY, 2 + difficulty,
+                    switch (phase) {
+                        case 0 -> "أيقظ الجذور من حولك، وكرر نداء الطبيعة دون أدوات.";
+                        case 1 -> "الحياة تنمو بالتوازن؛ أطلق قوة الجذور أكثر من مرة.";
+                        case 2 -> "دع نبض الطبيعة يمر عبرك مرة أخرى.";
+                        default -> "أثبت أن الطبيعة تثق بمن يحميها.";
+                    });
+            case LIGHT -> new Trial(TrialKind.ELEMENT_MASTERY, 2 + difficulty,
+                    switch (phase) {
+                        case 0 -> "أطلق ومضة النور حتى تتبدد الظلال من حولك.";
+                        case 1 -> "النور لا يتردد؛ كرر اندفاعتك المضيئة.";
+                        case 2 -> "اجعل وهجك دليلًا لمن يسير في العتمة.";
+                        default -> "أثبت أنك تستطيع حمل النور دون أن تنطفئ.";
+                    });
+            case SOUND -> new Trial(TrialKind.ELEMENT_MASTERY, 2 + difficulty,
+                    switch (phase) {
+                        case 0 -> "أطلق صدى قوتك، ودع الموجة تتحدث بدلًا منك.";
+                        case 1 -> "كل نبضة تترك أثرًا؛ كرر الموجة الصوتية.";
+                        case 2 -> "اجعل الصمت يسمع قوة صوتك.";
+                        default -> "وحّد إيقاعك مع الصدى وأطلقه مرة أخرى.";
+                    });
+            case CRYSTAL -> new Trial(TrialKind.ELEMENT_MASTERY, 2 + difficulty,
+                    switch (phase) {
+                        case 0 -> "أطلق شظايا البلور، ودع بريقها يكشف عزيمتك.";
+                        case 1 -> "النقاء يحتاج إلى تركيز؛ كرر انفجار البلور.";
+                        case 2 -> "دع الكريستال يلمع بقوتك مرة أخرى.";
+                        default -> "أثبت أن إرادتك أصلب من البلور.";
+                    });
         };
     }
 
@@ -369,6 +427,7 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
                 case LIGHTNING_ROD_NEAR -> nearLightningRod(p);
                 case SHADOW_DARK -> inDarkness(p);
                 case SHADOW_SNEAK_DARK -> p.isSneaking() && inDarkness(p);
+                case ELEMENT_MASTERY -> false;
                 default -> false;
             };
             if (valid) updateTrial(p, trial.kind(), 1);
@@ -388,12 +447,12 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
     // ------------------------------------------------------------ GUI
     void openGui(Player p) {
         MagicGui h = new MagicGui();
-        h.inv = Bukkit.createInventory(h, 27, c("§8✦ اختار قوتك السحرية ✦"));
+        h.inv = Bukkit.createInventory(h, 54, c("§8✦ اختار قوتك السحرية ✦"));
         ItemStack glass = new ItemStack(Material.BLACK_STAINED_GLASS_PANE);
         ItemMeta gm = glass.getItemMeta();
         gm.displayName(c(" "));
         glass.setItemMeta(gm);
-        for (int i = 0; i < 27; i++) h.inv.setItem(i, glass);
+        for (int i = 0; i < 54; i++) h.inv.setItem(i, glass);
 
         Element[] els = Element.values();
         for (int i = 0; i < els.length; i++) {
@@ -443,10 +502,11 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
         data.set("players." + p.getUniqueId() + ".trialProgress", 0);
         save();
         p.closeInventory();
-        giveWeapon(p, el, 1);
+        if (!isUnarmedOnly(el)) giveWeapon(p, el, 1);
         p.sendMessage(c("§6✦ §fاتعلمت قوة " + el.color + el.ar + "§f! اجمع النقاط من اللعب، واكتشف الاختبارات السرية."));
         p.sendMessage(c("§eحركة بدون سلاح: اضغط Shift وكليك يمين في الهواء ويدك فاضية."));
         p.sendMessage(c("§7حركتك الحالية: " + el.color + unarmedMoveName(el) + " §8| §7تتطور كل 20 لفل."));
+        p.sendMessage(c("§7اكتب §e/gmagic powers §7لرؤية وصف القوى الاثنتي عشرة."));
         p.showTitle(net.kyori.adventure.title.Title.title(
                 c(el.color + "✦ قوة " + el.ar + " ✦"), c("§7قوتك وحركتك بدون سلاح جاهزين")));
         celebrate(p, el);
@@ -606,9 +666,11 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
         dirty = true;
         int newLevel = levelOf(p);
         if (newLevel > oldLevel) {
-            for (int l = oldLevel + 1; l <= Math.min(newLevel, 5); l++) {
-                giveWeapon(p, el, l);
-                p.sendMessage(c("§6✦ §fلفل جديد! §e" + l + " §f— استلمت: " + el.color + WNAMES[l - 1] + " " + el.ar));
+            if (!isUnarmedOnly(el)) {
+                for (int l = oldLevel + 1; l <= Math.min(newLevel, 5); l++) {
+                    giveWeapon(p, el, l);
+                    p.sendMessage(c("§6✦ §fلفل جديد! §e" + l + " §f— استلمت: " + el.color + WNAMES[l - 1] + " " + el.ar));
+                }
             }
             p.sendMessage(c("§6✦ §fارتفع مستواك إلى §e" + newLevel + "§f!"));
             p.showTitle(net.kyori.adventure.title.Title.title(
@@ -676,6 +738,9 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
                 v.addPotionEffect(new PotionEffect(PotionEffectType.WITHER, 60 + l * 20, 0));
                 v.addPotionEffect(new PotionEffect(PotionEffectType.BLINDNESS, 40, 0));
             }
+            case ICE, METAL, NATURE, LIGHT, SOUND, CRYSTAL -> {
+                // These six schools are designed around unarmed movement skills.
+            }
         }
     }
 
@@ -722,6 +787,10 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
 
         W w = info(held);
         if (w == null || !isValidWeapon(p, held)) return;
+        if (isUnarmedOnly(w.el())) {
+            p.sendActionBar(c("§eالقوة دي بتشتغل بإيد فاضية: Shift + كليك يمين في الهواء."));
+            return;
+        }
         if (held.getType() == Material.BOW && !p.isSneaking()) return;
         ability(p, w);
     }
@@ -754,6 +823,12 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
             case WIND -> "اندفاعة الريح";
             case LIGHTNING -> "خطوة البرق";
             case SHADOW -> "اختفاء الظل";
+            case ICE -> "قبضة الصقيع";
+            case METAL -> "درع الفولاذ";
+            case NATURE -> "جذور الحياة";
+            case LIGHT -> "وميض النور";
+            case SOUND -> "الموجة الصوتية";
+            case CRYSTAL -> "شظايا البلور";
         };
     }
 
@@ -773,16 +848,19 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
     }
 
     void unarmedAbility(Player p, Element el) {
+        int tier = unarmedTier(p);
         long now = System.currentTimeMillis();
         Long ready = cd.get(p.getUniqueId());
         if (ready != null && ready > now) {
             p.sendActionBar(c("§cالحركة جاهزة بعد " + ((ready - now) / 1000 + 1) + " ث"));
             return;
         }
+        if (advanced != null && !advanced.consumeMoveMana(p, tier)) return;
 
-        int tier = unarmedTier(p);
         long cooldown = Math.max(6000L, 15000L - tier * 1500L);
         cd.put(p.getUniqueId(), now + cooldown);
+        updateTrial(p, TrialKind.ELEMENT_MASTERY, 1);
+        if (advanced != null) advanced.noteCast(p);
 
         Location start = p.getLocation().clone();
         World world = p.getWorld();
@@ -885,6 +963,83 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
                             destination.clone().add(0, 1, 0), 55, 0.35, 0.7, 0.35, 0.2);
                     p.getWorld().playSound(destination, Sound.ENTITY_ENDERMAN_TELEPORT, 0.9f, 1.2f);
                 }
+                case ICE -> {
+                    // لكمة صقيع أمامية تبطئ الخصوم وتراكم عليهم التجمد.
+                    for (int i = 1; i <= 5 + tier; i++) {
+                        Location point = p.getEyeLocation().add(direction.clone().multiply(i));
+                        world.spawnParticle(Particle.SNOWFLAKE, point, 8 + tier * 2, 0.16, 0.16, 0.16, 0.01);
+                    }
+                    for (LivingEntity target : inFront(p, 5 + tier, 0.45)) {
+                        target.damage(1.5 + tier * 1.1, p);
+                        target.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 70 + tier * 15, 1 + tier / 3));
+                        target.setFreezeTicks(Math.min(140, target.getFreezeTicks() + 35 + tier * 15));
+                    }
+                    p.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, 35 + tier * 8, 0));
+                }
+                case METAL -> {
+                    // وضعية فولاذية تمنح حماية ثم تطلق دفعة معدنية حول اللاعب.
+                    world.spawnParticle(Particle.BLOCK, start, 65 + tier * 12,
+                            1.5 + tier * 0.2, 0.35, 1.5 + tier * 0.2, 0.1,
+                            Material.IRON_BLOCK.createBlockData());
+                    ring(start, Particle.CRIT, null, 2.5 + tier * 0.5, 9);
+                    p.addPotionEffect(new PotionEffect(PotionEffectType.RESISTANCE, 70 + tier * 18, 1));
+                    p.addPotionEffect(new PotionEffect(PotionEffectType.ABSORPTION, 100 + tier * 20, 1));
+                    for (LivingEntity target : near(p, 3.0 + tier * 0.45)) {
+                        target.damage(1.5 + tier, p);
+                        push(target, start, 0.65 + tier * 0.12, 0.3);
+                    }
+                }
+                case NATURE -> {
+                    // جذور خضراء تحمي صاحبها وتحبس الخصوم القريبين.
+                    ring(start, Particle.HAPPY_VILLAGER, null, 2.6 + tier * 0.5, 10);
+                    world.spawnParticle(Particle.COMPOSTER, start.clone().add(0, 0.4, 0), 35 + tier * 8, 1, 0.2, 1, 0.02);
+                    p.addPotionEffect(new PotionEffect(PotionEffectType.REGENERATION, 90 + tier * 20, 0));
+                    p.addPotionEffect(new PotionEffect(PotionEffectType.ABSORPTION, 80 + tier * 15, 0));
+                    for (LivingEntity target : near(p, 3.2 + tier * 0.4)) {
+                        target.damage(1.0 + tier * 0.7, p);
+                        target.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 75 + tier * 12, 2));
+                        push(target, start, 0.25, 0.12);
+                    }
+                }
+                case LIGHT -> {
+                    // ومضة قوية تعمي الخصوم وتمنح اللاعب سرعة اندفاع قصيرة.
+                    world.spawnParticle(Particle.END_ROD, start.clone().add(0, 1, 0), 55 + tier * 12, 1.1, 0.9, 1.1, 0.08);
+                    world.spawnParticle(Particle.FLASH, start.clone().add(0, 1, 0), 1);
+                    p.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, 65 + tier * 12, 1 + tier / 4));
+                    p.addPotionEffect(new PotionEffect(PotionEffectType.GLOWING, 50 + tier * 10, 0));
+                    for (LivingEntity target : near(p, 3.5 + tier * 0.45)) {
+                        target.damage(1.0 + tier, p);
+                        target.addPotionEffect(new PotionEffect(PotionEffectType.BLINDNESS, 35 + tier * 12, 0));
+                    }
+                }
+                case SOUND -> {
+                    // موجة صوتية دائرية تزيح الخصوم بعيدًا عن اللاعب.
+                    world.spawnParticle(Particle.SONIC_BOOM, start.clone().add(0, 1, 0), 1);
+                    ring(start, Particle.NOTE, null, 3.0 + tier * 0.65, 10);
+                    world.playSound(start, Sound.BLOCK_NOTE_BLOCK_CHIME, 1.3f, 0.55f + tier * 0.12f);
+                    for (LivingEntity target : near(p, 4.0 + tier * 0.5)) {
+                        target.damage(2.0 + tier, p);
+                        push(target, start, 1.0 + tier * 0.15, 0.5 + tier * 0.08);
+                    }
+                }
+                case CRYSTAL -> {
+                    // شظايا بلورية تصيب الأهداف الواقعة أمام اللاعب.
+                    for (int i = 1; i <= 6 + tier; i++) {
+                        Location point = p.getEyeLocation().add(direction.clone().multiply(i));
+                        world.spawnParticle(Particle.CRIT, point, 7 + tier, 0.12, 0.12, 0.12, 0.08);
+                        world.spawnParticle(Particle.END_ROD, point, 2 + tier / 2, 0.04, 0.04, 0.04, 0.01);
+                    }
+                    List<LivingEntity> targets = inFront(p, 6 + tier, 0.45);
+                    targets.sort(Comparator.comparingDouble(t -> t.getLocation().distanceSquared(start)));
+                    int hits = Math.min(targets.size(), 1 + tier / 2);
+                    for (int i = 0; i < hits; i++) {
+                        LivingEntity target = targets.get(i);
+                        target.damage(2.0 + tier * 1.15, p);
+                        target.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 45 + tier * 10, 1));
+                        world.spawnParticle(Particle.BLOCK, target.getLocation().add(0, 1, 0), 22,
+                                0.25, 0.4, 0.25, 0.08, Material.AMETHYST_BLOCK.createBlockData());
+                    }
+                }
             }
         } finally {
             inAbility = false;
@@ -899,6 +1054,7 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
             return;
         }
         cd.put(p.getUniqueId(), now + (long) ((12 - w.lvl() * 1.5) * 1000));
+        updateTrial(p, TrialKind.ELEMENT_MASTERY, 1);
 
         World wd = p.getWorld();
         Location loc = p.getLocation();
@@ -995,6 +1151,8 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
                         t.addPotionEffect(new PotionEffect(PotionEffectType.WITHER, 60, 0));
                     }
                 }
+                case ICE, METAL, NATURE, LIGHT, SOUND, CRYSTAL ->
+                        p.sendActionBar(c("§eاستخدم القوة بإيد فاضية: Shift + كليك يمين في الهواء."));
             }
         } finally {
             inAbility = false;
@@ -1085,7 +1243,7 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
         // نظّف أي نسخة سحرية كانت محفوظة في صندوق الاسترجاع من موت سابق.
         UUID uuid = p.getUniqueId();
         List<ItemStack> stash = loadStash(uuid);
-        if (stash.removeIf(it -> info(it) != null)) {
+        if (stash.removeIf(it -> info(it) != null || (advanced != null && advanced.isRelicItem(it)))) {
             data.set("stash." + uuid + ".items", stash);
             dirty = true;
         }
@@ -1209,6 +1367,7 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
             restore(p);
             return true;
         }
+        if (advanced != null && advanced.handleCommand(s, a)) return true;
         // /gmagic
         if (a.length >= 1 && (a[0].equalsIgnoreCase("reset") || a[0].equalsIgnoreCase("level"))) {
             if (!s.hasPermission("gawhara.magic.admin")) { s.sendMessage(c("§cمعندكش صلاحية.")); return true; }
@@ -1220,11 +1379,12 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
                 // تغيير رقم الجيل يبطل أي نسخة قديمة من السلاح حتى لو كانت مخزنة في صندوق.
                 data.set("magicGeneration." + uuid, magicGeneration(t) + 1);
                 int removed = removeMagicItems(t);
+                int relicsRemoved = advanced != null ? advanced.resetPlayer(t) : 0;
                 data.set(playerPath(t), null);
                 save();
                 s.sendMessage(c("§aاتعمل ريسيت لـ " + t.getName() + " وتم إبطال أسلحته السحرية القديمة."));
                 t.sendMessage(c("§cتم تصفير قوتك السحرية! اتشالت أسلحتك القديمة وتأثيراتها، واختار قوة جديدة للبدء من الأول."));
-                t.sendMessage(c("§7عدد الأسلحة السحرية التي أُزيلت من أغراضك: §e" + removed));
+                t.sendMessage(c("§7الأسلحة السحرية التي أُزيلت: §e" + removed + " §7| الآثار السحرية التي أُزيلت: §e" + relicsRemoved));
                 openGui(t);
             } else {
                 Element el = getEl(t);
@@ -1244,7 +1404,18 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
         if (!(s instanceof Player p)) { s.sendMessage("للاعبين بس."); return true; }
         Element el = getEl(p);
         if (el == null) { openGui(p); return true; }
+        if (a.length >= 1 && a[0].equalsIgnoreCase("powers")) {
+            p.sendMessage(c("§6✦ §eمدارس القوى الاثنتا عشرة في GawharaMagic"));
+            for (Element power : Element.values()) {
+                p.sendMessage(c(power.color + "✦ " + power.ar + " §7— " + power.ability + "§8: " + power.desc));
+            }
+            return true;
+        }
         if (a.length >= 1 && a[0].equalsIgnoreCase("weapons")) {
+            if (isUnarmedOnly(el)) {
+                p.sendMessage(c("§eقوتك تعتمد على الحركات باليد الفارغة، مش على الأسلحة."));
+                return true;
+            }
             int lv = levelOf(p);
             int given = 0;
             if (!hasWeapon(p, el, 1)) { giveWeapon(p, el, 1); given++; }
@@ -1266,9 +1437,17 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
         else if (completedTrials(p) < TOTAL_TRIALS)
             p.sendMessage(c("§7الاختبار السري القادم عند لفل §e" + ((completedTrials(p) + 1) * 5)));
         p.sendMessage(c("§7/gmagic weapons ← استرجاع الأسلحة المفتوحة"));
+        p.sendMessage(c("§7/gmagic powers ← عرض القوى الاثنتي عشرة"));
         p.sendMessage(c("§7/gmagic task ← تلميح الاختبار السري"));
+        p.sendMessage(c("§b/gmagic spin §7← دوران عنصري (Shift + كليك شمال في الهواء وإيدك فاضية)"));
+        p.sendMessage(c("§b/gmagic guard §7← درع حماية (Shift + F وإيدك فاضية)"));
+        p.sendMessage(c("§b/gmagic ultimate §7← القوة النهائية | /gmagic awaken ← الاستيقاظ عند لفل 100"));
+        p.sendMessage(c("§d/gmagic fusion <player> §7← دعوة اندماج | fusion accept للموافقة"));
+        p.sendMessage(c("§d/gmagic forbidden | relics | relic claim <id> | spirit | bounty | reputation | transform"));
+        p.sendMessage(c("§d/gmagic spin | ultimate | guard | awaken | fusion <player> | mana"));
         p.sendMessage(c("§eحركة بدون سلاح: Shift + كليك يمين في الهواء بيد فاضية."));
         p.sendMessage(c("§7حركتك: " + el.color + unarmedMoveName(el) + " §8| §7الدرجة " + unarmedTier(p) + "/5"));
+        p.sendMessage(c("§7المانا من AuraSkills هي وقود الحركات؛ استخدم /gmagic relics و /gmagic bounty للمزيد."));
         return true;
     }
 }

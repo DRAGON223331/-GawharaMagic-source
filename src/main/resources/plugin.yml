@@ -1,13 +1,14 @@
 name: GawharaMagic
 main: gawhara.magic.Magic
-version: 1.3
+version: 2.0.0
 api-version: '1.21'
+depend: [AuraSkills]
 author: Gawhara
-description: Six magic elements, 100 levels, secret elemental trials, unarmed elemental moves, and /grestore.
+description: Twelve elemental schools, AuraSkills mana abilities, relics, spirit companions, contracts, and transformations.
 commands:
   gmagic:
     description: Open the magic GUI, status, and secret trials
-    usage: /gmagic [task|weapons|reset <player>|level <player> <1-100>]
+    usage: /gmagic [task|powers|spin|guard|ultimate|awaken|fusion <player>|fusion accept|fusion decline|forbidden|mana|relics|relic claim <id>|relic give <player> <id>|spirit|bounty|reputation|transform|reset <player>|level <player> <1-100>]
     aliases: [magic]
   grestore:
     description: Get back everything you lost when you died

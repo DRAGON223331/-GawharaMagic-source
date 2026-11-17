@@ -1,0 +1,59 @@
+# GawharaMagic 2.0 - Mana is read from AuraSkills (Wisdom determines max mana).
+mana:
+  level-scale: 1.25
+  base-move: 14.0
+  spin: 28.0
+  ultimate: 72.0
+  guard: 18.0
+  awakening: 90.0
+  fusion: 38.0
+  forbidden: 82.0
+  relic: 20.0
+  transformation: 60.0
+
+cooldowns:
+  spin: 18
+  ultimate: 180
+  guard: 28
+  awakening: 300
+  fusion: 90
+  forbidden: 240
+  relic: 40
+  transformation: 180
+
+requirements:
+  ultimate-level: 60
+  awakening-level: 100
+  forbidden-level: 75
+  forbidden-reputation: 100
+  transformation-level: 80
+  transformation-reputation: 150
+
+guard:
+  duration-seconds: 5
+  damage-multiplier: 0.35
+
+awakening:
+  duration-seconds: 30
+  mana-cost-multiplier: 0.85
+  damage-multiplier: 0.75
+
+forbidden:
+  duration-seconds: 14
+
+transformation:
+  duration-seconds: 35
+
+bounty:
+  reputation-reward: 40
+
+# Spirit companion periodically restores a small amount of AuraSkills mana.
+spirit:
+  mana-interval-seconds: 60
+  mana-restore-percent: 2.5
+
+# Reputation needed to claim each reusable elemental relic once.
+relics:
+  tide-reputation: 100
+  focus-reputation: 200
+  guardian-reputation: 350

@@ -4,6 +4,7 @@ import org.bukkit.Material;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
 
+/** Original elemental schools used by GawharaMagic. */
 public enum Element {
     FIRE("النار", "§c", Material.BLAZE_POWDER, Particle.FLAME, Sound.ENTITY_BLAZE_SHOOT,
             "موجة النار", "بتحرق أعداءك وتدفعهم بعيد بموجة نار"),
@@ -16,7 +17,19 @@ public enum Element {
     LIGHTNING("البرق", "§e", Material.LIGHTNING_ROD, Particle.ELECTRIC_SPARK, Sound.ENTITY_LIGHTNING_BOLT_THUNDER,
             "صاعقة", "بتنزّل صواعق على أقرب أعدائك"),
     SHADOW("الظلام", "§5", Material.ECHO_SHARD, Particle.PORTAL, Sound.ENTITY_WITHER_SHOOT,
-            "قفزة الظل", "بتتنقل في الضلمة وبتعمي وتسمّم اللي حواليك");
+            "قفزة الظل", "بتتنقل في الضلمة وبتعمي وتسمّم اللي حواليك"),
+    ICE("الجليد", "§b", Material.PACKED_ICE, Particle.SNOWFLAKE, Sound.BLOCK_GLASS_BREAK,
+            "قبضة الصقيع", "موجة برد تجمد الخصوم وتبطّئهم"),
+    METAL("المعدن", "§7", Material.IRON_INGOT, Particle.CRIT, Sound.BLOCK_ANVIL_LAND,
+            "درع الفولاذ", "درع صلب يحميك ويرد الخصوم للخلف"),
+    NATURE("الطبيعة", "§a", Material.OAK_SAPLING, Particle.HAPPY_VILLAGER, Sound.ITEM_BONE_MEAL_USE,
+            "جذور الحياة", "تجدد قوتك وتقيّد حركة الخصوم"),
+    LIGHT("النور", "§e", Material.GLOWSTONE_DUST, Particle.END_ROD, Sound.BLOCK_BEACON_ACTIVATE,
+            "وميض النور", "ومضة تعمي خصومك وتمنحك سرعة"),
+    SOUND("الصوت", "§d", Material.NOTE_BLOCK, Particle.NOTE, Sound.BLOCK_NOTE_BLOCK_CHIME,
+            "الموجة الصوتية", "موجة صوتية تدفع الخصوم بعيدًا"),
+    CRYSTAL("الكريستال", "§3", Material.AMETHYST_SHARD, Particle.END_ROD, Sound.BLOCK_AMETHYST_BLOCK_CHIME,
+            "شظايا البلور", "شظايا حادة تصيب الأهداف وتبطّئها");
 
     public final String ar;
     public final String color;
