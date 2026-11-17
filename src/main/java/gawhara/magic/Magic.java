@@ -882,7 +882,7 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
         W w = info(held);
         if (w == null || !isValidWeapon(p, held)) return;
         if (act == org.bukkit.event.block.Action.RIGHT_CLICK_BLOCK
-                && e.getClickedBlock() != null && e.getClickedBlock().isInteractable()) return;
+                && e.getClickedBlock() != null && !e.getClickedBlock().getType().isInteractable() return;
         if (held.getType() == Material.BOW && !p.isSneaking()) return;
         e.setCancelled(true);
         ability(p, w);
