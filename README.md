@@ -1,4 +1,4 @@
-# GawharaMagic 2.0.2
+# GawharaMagic 2.0.3
 
 GawharaMagic adds 12 elemental schools, 100 levels, secret trials every 5 levels, five distinct weapon tiers per element, empty-hand moves, and optional RPG progression systems.
 
