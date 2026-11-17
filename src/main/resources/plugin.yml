@@ -1,13 +1,13 @@
 name: GawharaMagic
 main: gawhara.magic.Magic
-version: 1.0
+version: 1.2
 api-version: '1.21'
 author: Gawhara
-description: Magic elements, level weapons that survive death, and /grestore.
+description: Six magic elements, 100 levels, secret elemental trials, and /grestore.
 commands:
   gmagic:
-    description: Open the magic GUI / status / weapons
-    usage: /gmagic [weapons|reset <player>|level <player> <1-5>]
+    description: Open the magic GUI, status, and secret trials
+    usage: /gmagic [task|weapons|reset <player>|level <player> <1-100>]
     aliases: [magic]
   grestore:
     description: Get back everything you lost when you died
