@@ -445,8 +445,10 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
         p.closeInventory();
         giveWeapon(p, el, 1);
         p.sendMessage(c("§6✦ §fاتعلمت قوة " + el.color + el.ar + "§f! اجمع النقاط من اللعب، واكتشف الاختبارات السرية."));
+        p.sendMessage(c("§eحركة بدون سلاح: اضغط Shift وكليك يمين في الهواء ويدك فاضية."));
+        p.sendMessage(c("§7حركتك الحالية: " + el.color + unarmedMoveName(el) + " §8| §7تتطور كل 20 لفل."));
         p.showTitle(net.kyori.adventure.title.Title.title(
-                c(el.color + "✦ قوة " + el.ar + " ✦"), c("§7سلاحك الأول في إيدك")));
+                c(el.color + "✦ قوة " + el.ar + " ✦"), c("§7قوتك وحركتك بدون سلاح جاهزين")));
         celebrate(p, el);
         Bukkit.broadcast(c("§6✦ §e" + p.getName() + " §7اختار قوة " + el.color + el.ar));
     }
@@ -699,9 +701,25 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
     public void onUse(PlayerInteractEvent e) {
         if (e.getHand() != EquipmentSlot.HAND) return;
         org.bukkit.event.block.Action act = e.getAction();
-        if (act != org.bukkit.event.block.Action.RIGHT_CLICK_AIR && act != org.bukkit.event.block.Action.RIGHT_CLICK_BLOCK) return;
+        if (act != org.bukkit.event.block.Action.RIGHT_CLICK_AIR
+                && act != org.bukkit.event.block.Action.RIGHT_CLICK_BLOCK) return;
+
         Player p = e.getPlayer();
         ItemStack held = p.getInventory().getItemInMainHand();
+
+        // قدرات قتالية وحركية باليد الفارغة: Shift + Right Click في الهواء.
+        // لا نلغي تفاعل اللاعب مع الصناديق والأبواب والبلوكات؛ التفعيل بالهواء فقط.
+        if (held.getType() == Material.AIR) {
+            if (act == org.bukkit.event.block.Action.RIGHT_CLICK_AIR && p.isSneaking()) {
+                Element el = getEl(p);
+                if (el != null) {
+                    e.setCancelled(true);
+                    unarmedAbility(p, el);
+                }
+            }
+            return;
+        }
+
         W w = info(held);
         if (w == null || !isValidWeapon(p, held)) return;
         if (held.getType() == Material.BOW && !p.isSneaking()) return;
@@ -721,6 +739,156 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
         Vector v = e.getLocation().toVector().subtract(from.toVector()).setY(0);
         if (v.lengthSquared() < 0.0001) v = new Vector(0, 0, 0); else v.normalize();
         e.setVelocity(v.multiply(power).setY(up));
+    }
+
+    int unarmedTier(Player p) {
+        // تتطور الحركة كل 20 مستوى: خمس درجات حتى لفل 100.
+        return Math.max(1, Math.min(5, ((levelOf(p) - 1) / 20) + 1));
+    }
+
+    String unarmedMoveName(Element el) {
+        return switch (el) {
+            case FIRE -> "لكمة اللهب";
+            case WATER -> "خطوة المد";
+            case EARTH -> "زلزال الأرض";
+            case WIND -> "اندفاعة الريح";
+            case LIGHTNING -> "خطوة البرق";
+            case SHADOW -> "اختفاء الظل";
+        };
+    }
+
+    List<LivingEntity> inFront(Player p, double range, double minDot) {
+        List<LivingEntity> result = new ArrayList<>();
+        Vector direction = p.getLocation().getDirection().normalize();
+        for (LivingEntity target : near(p, range)) {
+            Vector offset = target.getLocation().add(0, 1, 0).toVector()
+                    .subtract(p.getEyeLocation().toVector());
+            double distance = offset.length();
+            if (distance > 0.001 && distance <= range
+                    && direction.dot(offset.multiply(1.0 / distance)) >= minDot) {
+                result.add(target);
+            }
+        }
+        return result;
+    }
+
+    void unarmedAbility(Player p, Element el) {
+        long now = System.currentTimeMillis();
+        Long ready = cd.get(p.getUniqueId());
+        if (ready != null && ready > now) {
+            p.sendActionBar(c("§cالحركة جاهزة بعد " + ((ready - now) / 1000 + 1) + " ث"));
+            return;
+        }
+
+        int tier = unarmedTier(p);
+        long cooldown = Math.max(6000L, 15000L - tier * 1500L);
+        cd.put(p.getUniqueId(), now + cooldown);
+
+        Location start = p.getLocation().clone();
+        World world = p.getWorld();
+        Vector direction = p.getLocation().getDirection().normalize();
+        if (direction.lengthSquared() < 0.001) direction = new Vector(0, 0, 1);
+        p.sendActionBar(c(el.color + "✦ " + unarmedMoveName(el) + " §7(بدون سلاح)"));
+        world.playSound(start, el.sound, 1.0f, 1.15f);
+
+        inAbility = true;
+        try {
+            switch (el) {
+                case FIRE -> {
+                    // لكمة نارية أمام اللاعب تصيب من يقع في اتجاه نظره فقط.
+                    for (int i = 1; i <= 5 + tier; i++) {
+                        Location point = p.getEyeLocation().add(direction.clone().multiply(i));
+                        world.spawnParticle(Particle.FLAME, point, 7 + tier, 0.12, 0.12, 0.12, 0.015);
+                        world.spawnParticle(Particle.SMOKE, point, 2, 0.08, 0.08, 0.08, 0.01);
+                    }
+                    for (LivingEntity target : inFront(p, 5 + tier, 0.55)) {
+                        target.damage(2.0 + tier * 1.2, p);
+                        target.setFireTicks(40 + tier * 20);
+                        push(target, start, 0.35 + tier * 0.10, 0.18);
+                    }
+                }
+                case WATER -> {
+                    // انزلاق مائي للأمام مع استعادة جزء من الصحة وإبعاد الخصوم.
+                    p.setVelocity(direction.clone().multiply(1.0 + tier * 0.16).setY(0.24));
+                    p.addPotionEffect(new PotionEffect(PotionEffectType.REGENERATION, 60 + tier * 20, 0));
+                    p.addPotionEffect(new PotionEffect(PotionEffectType.SLOW_FALLING, 30, 0));
+                    ring(start, Particle.SPLASH, null, 2.2 + tier * 0.45, 9);
+                    for (LivingEntity target : near(p, 3.0 + tier * 0.35)) {
+                        target.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 45 + tier * 10, 1));
+                        push(target, start, 0.45 + tier * 0.08, 0.18);
+                    }
+                }
+                case EARTH -> {
+                    // ضربة قدم أرضية تمنح درعًا وتُبعد الكائنات القريبة.
+                    world.spawnParticle(Particle.BLOCK, start, 55 + tier * 10,
+                            1.4 + tier * 0.25, 0.15, 1.4 + tier * 0.25, 0.1,
+                            Material.STONE.createBlockData());
+                    ring(start, Particle.BLOCK, Material.DIRT.createBlockData(), 3.0 + tier * 0.5, 10);
+                    p.addPotionEffect(new PotionEffect(PotionEffectType.RESISTANCE, 60 + tier * 20, 0));
+                    p.addPotionEffect(new PotionEffect(PotionEffectType.ABSORPTION, 100 + tier * 20, 0));
+                    for (LivingEntity target : near(p, 3.0 + tier * 0.5)) {
+                        target.damage(1.5 + tier, p);
+                        push(target, start, 0.55 + tier * 0.10, 0.65);
+                    }
+                }
+                case WIND -> {
+                    // اندفاعة هوائية بعيدة مع سقوط آمن ودفعة هواء أمام اللاعب.
+                    p.setVelocity(direction.clone().multiply(1.45 + tier * 0.22).setY(0.32 + tier * 0.035));
+                    p.addPotionEffect(new PotionEffect(PotionEffectType.SLOW_FALLING, 70 + tier * 10, 0));
+                    for (LivingEntity target : inFront(p, 4.0 + tier, 0.35)) {
+                        push(target, start, 0.75 + tier * 0.12, 0.35);
+                    }
+                    new BukkitRunnable() {
+                        int ticks = 0;
+                        @Override public void run() {
+                            if (!p.isOnline() || ticks++ >= 12) { cancel(); return; }
+                            Location trail = p.getLocation().add(0, 0.7, 0);
+                            p.getWorld().spawnParticle(Particle.CLOUD, trail, 10, 0.25, 0.25, 0.25, 0.02);
+                        }
+                    }.runTaskTimer(this, 0, 1);
+                }
+                case LIGHTNING -> {
+                    // اندفاعة برق، ثم شرارة تصيب أقرب خصوم أمام اللاعب دون صاعقة طبيعية.
+                    p.setVelocity(direction.clone().multiply(1.25 + tier * 0.20).setY(0.22));
+                    p.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, 50 + tier * 15, 1));
+                    List<LivingEntity> targets = inFront(p, 6.0 + tier, 0.4);
+                    targets.sort(Comparator.comparingDouble(t -> t.getLocation().distanceSquared(start)));
+                    int hits = Math.min(targets.size(), 1 + tier / 2);
+                    for (int i = 0; i < hits; i++) {
+                        LivingEntity target = targets.get(i);
+                        world.spawnParticle(Particle.ELECTRIC_SPARK, target.getLocation().add(0, 1, 0),
+                                28 + tier * 5, 0.3, 0.55, 0.3, 0.12);
+                        world.strikeLightningEffect(target.getLocation());
+                        target.damage(2.0 + tier * 1.3, p);
+                    }
+                    world.spawnParticle(Particle.ELECTRIC_SPARK, start, 22, 0.5, 0.6, 0.5, 0.15);
+                }
+                case SHADOW -> {
+                    // اختفاء خاطف وانتقال آمن للأمام، دون الحاجة إلى أداة أو سلاح.
+                    Location destination = start.clone();
+                    int distance = 3 + tier;
+                    for (int i = 1; i <= distance; i++) {
+                        Location candidate = start.clone().add(direction.clone().multiply(i));
+                        if (candidate.getBlock().isPassable()
+                                && candidate.clone().add(0, 1, 0).getBlock().isPassable()
+                                && candidate.clone().add(0, -1, 0).getBlock().getType().isSolid()) {
+                            destination = candidate;
+                        } else {
+                            break;
+                        }
+                    }
+                    world.spawnParticle(Particle.PORTAL, start.clone().add(0, 1, 0), 55, 0.35, 0.7, 0.35, 0.35);
+                    p.teleport(destination);
+                    p.addPotionEffect(new PotionEffect(PotionEffectType.INVISIBILITY, 35 + tier * 12, 0));
+                    p.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, 35 + tier * 10, 1));
+                    p.getWorld().spawnParticle(Particle.REVERSE_PORTAL,
+                            destination.clone().add(0, 1, 0), 55, 0.35, 0.7, 0.35, 0.2);
+                    p.getWorld().playSound(destination, Sound.ENTITY_ENDERMAN_TELEPORT, 0.9f, 1.2f);
+                }
+            }
+        } finally {
+            inAbility = false;
+        }
     }
 
     void ability(Player p, W w) {
@@ -1099,6 +1267,8 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
             p.sendMessage(c("§7الاختبار السري القادم عند لفل §e" + ((completedTrials(p) + 1) * 5)));
         p.sendMessage(c("§7/gmagic weapons ← استرجاع الأسلحة المفتوحة"));
         p.sendMessage(c("§7/gmagic task ← تلميح الاختبار السري"));
+        p.sendMessage(c("§eحركة بدون سلاح: Shift + كليك يمين في الهواء بيد فاضية."));
+        p.sendMessage(c("§7حركتك: " + el.color + unarmedMoveName(el) + " §8| §7الدرجة " + unarmedTier(p) + "/5"));
         return true;
     }
 }
