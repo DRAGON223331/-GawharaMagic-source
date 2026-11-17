@@ -162,7 +162,17 @@ public final class AdvancedSystems implements Listener {
                 && !ability.equals("awakening")) {
             cost *= plugin.getConfig().getDouble("awakening.mana-cost-multiplier", 0.85);
         }
-        if (!user.consumeMana(cost)) return false;
+        double currentMana = user.getMana();
+        if (currentMana + 0.0001 < cost) {
+            player.sendActionBar(Magic.c("§cمانا غير كافية: تحتاج " + String.format(Locale.US, "%.0f", cost)
+                    + " ولديك " + String.format(Locale.US, "%.0f", currentMana)));
+            player.sendMessage(Magic.c("§7زود المانا من AuraSkills أو انتظر تجددها، ثم جرّب الحركة مرة ثانية."));
+            return false;
+        }
+        if (!user.consumeMana(cost)) {
+            player.sendActionBar(Magic.c("§cAuraSkills لم يسمح بخصم المانا؛ حاول بعد لحظة."));
+            return false;
+        }
         player.sendActionBar(Magic.c("§b✦ §f" + String.format(Locale.US, "%.0f", cost) + " Mana §7| §bAuraSkills"));
         return true;
     }
@@ -1093,7 +1103,22 @@ public final class AdvancedSystems implements Listener {
             return false;
         }
 
-        switch (args[0].toLowerCase(Locale.ROOT)) {
+        String sub = switch (args[0].toLowerCase(Locale.ROOT)) {
+            case "s", "sp" -> "spin";
+            case "u", "ult" -> "ultimate";
+            case "g", "gd" -> "guard";
+            case "a", "aw" -> "awaken";
+            case "f", "fr" -> "forbidden";
+            case "mn", "mna" -> "mana";
+            case "rel", "rl" -> "relics";
+            case "pet" -> "spirit";
+            case "b", "bt" -> "bounty";
+            case "rep" -> "reputation";
+            case "tr" -> "transform";
+            case "fu" -> "fusion";
+            default -> args[0].toLowerCase(Locale.ROOT);
+        };
+        switch (sub) {
             case "spin" -> { activateSpin(player); return true; }
             case "ultimate" -> { activateUltimate(player); return true; }
             case "guard" -> { activateGuard(player); return true; }

@@ -1,7 +1,8 @@
 # GawharaMagic 2.0 - Mana is read from AuraSkills (Wisdom determines max mana).
 mana:
   level-scale: 1.25
-  base-move: 14.0
+  base-move: 8.0
+  weapon: 18.0
   spin: 28.0
   ultimate: 72.0
   guard: 18.0
@@ -12,6 +13,8 @@ mana:
   transformation: 60.0
 
 cooldowns:
+  weapon-base: 8
+  weapon-per-tier: 3
   spin: 18
   ultimate: 180
   guard: 28
