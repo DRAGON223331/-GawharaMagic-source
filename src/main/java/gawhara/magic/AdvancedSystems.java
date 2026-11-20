@@ -59,7 +59,6 @@ public final class AdvancedSystems implements Listener {
     private final YamlConfiguration data;
     private final org.bukkit.NamespacedKey relicKey;
     private final org.bukkit.NamespacedKey spiritOwnerKey;
-    private final Map<String, Long> cooldowns = new HashMap<>();
     private final Map<UUID, Long> guardUntil = new HashMap<>();
     private final Map<UUID, Long> awakeningUntil = new HashMap<>();
     private final Map<UUID, Long> forbiddenUntil = new HashMap<>();
@@ -150,6 +149,7 @@ public final class AdvancedSystems implements Listener {
     }
 
     boolean consumeMana(Player player, String ability, int tier) {
+        if (player.isOp()) return true;
         SkillsUser user = auraUser(player);
         if (user == null) {
             player.sendActionBar(Magic.c("§cAuraSkills غير جاهز؛ لا يمكن استخدام قدرات المانا الآن."));
@@ -179,6 +179,7 @@ public final class AdvancedSystems implements Listener {
 
     /** خصم مانا مباشر (بدون مضاعف التير) — بيستخدمه وضع القوة. */
     boolean spendMana(Player player, double cost) {
+        if (player.isOp()) return true;
         SkillsUser user = auraUser(player);
         if (user == null) {
             player.sendActionBar(Magic.c("§cAuraSkills غير جاهز؛ لا يمكن استخدام قدرات المانا الآن."));
@@ -198,59 +199,32 @@ public final class AdvancedSystems implements Listener {
 
     /** إرجاع مانا (لو القدرة فشلت قبل ما تتنفذ). */
     void giveMana(Player player, double amount) {
+        if (player.isOp()) return; // OP لم يُخصم منه شيء، فلا نضيف له مانا عند استرداد محاولة فاشلة.
         SkillsUser user = auraUser(player);
         if (user == null) return;
         user.setMana(Math.min(user.getMaxMana(), user.getMana() + amount));
     }
 
     private boolean spendBoth(Player first, Player second, double cost) {
-        SkillsUser a = auraUser(first);
-        SkillsUser b = auraUser(second);
-        if (a == null || b == null) {
+        // OP players never spend mana; non-OP partners still pay their own share.
+        SkillsUser a = first.isOp() ? null : auraUser(first);
+        SkillsUser b = second.isOp() ? null : auraUser(second);
+        if ((!first.isOp() && a == null) || (!second.isOp() && b == null)) {
             first.sendMessage(Magic.c("§cبيانات AuraSkills غير جاهزة لأحد اللاعبين."));
             return false;
         }
-        double oldA = a.getMana();
-        double oldB = b.getMana();
-        if (oldA < cost || oldB < cost) {
-            first.sendMessage(Magic.c("§cلازم أنت وشريكك يكون معاكم " + (int) cost + " مانا على الأقل."));
+        double oldA = first.isOp() ? 0.0 : a.getMana();
+        double oldB = second.isOp() ? 0.0 : b.getMana();
+        if ((!first.isOp() && oldA + 0.0001 < cost) || (!second.isOp() && oldB + 0.0001 < cost)) {
+            first.sendMessage(Magic.c("§cكل لاعب غير OP لازم يكون معاه " + (int) cost + " مانا على الأقل."));
             return false;
         }
-        if (!a.consumeMana(cost)) return false;
-        if (!b.consumeMana(cost)) {
-            a.setMana(oldA);
-            return false;
-        }
-        return true;
-    }
-
-    private boolean cooldownReady(Player player, String action) {
-        String key = player.getUniqueId() + ":" + action;
-        long now = System.currentTimeMillis();
-        long next = cooldowns.getOrDefault(key, 0L);
-        if (next > now) {
-            player.sendActionBar(Magic.c("§c" + actionName(action) + " جاهزة بعد " + ((next - now) / 1000 + 1) + " ث"));
+        if (!first.isOp() && !a.consumeMana(cost)) return false;
+        if (!second.isOp() && !b.consumeMana(cost)) {
+            if (!first.isOp()) a.setMana(oldA);
             return false;
         }
         return true;
-    }
-
-    private void startCooldown(Player player, String action, int seconds) {
-        cooldowns.put(player.getUniqueId() + ":" + action,
-                System.currentTimeMillis() + Math.max(1, seconds) * 1000L);
-    }
-
-    private String actionName(String action) {
-        return switch (action) {
-            case "spin" -> "الدوران العنصري";
-            case "ultimate" -> "القوة النهائية";
-            case "guard" -> "درع الحماية";
-            case "awakening" -> "الاستيقاظ";
-            case "forbidden" -> "القوة المحرمة";
-            case "transform" -> "التحول النادر";
-            case "relic" -> "الأثر السحري";
-            default -> action;
-        };
     }
 
     void noteCast(Player player) {
@@ -311,7 +285,8 @@ public final class AdvancedSystems implements Listener {
     }
 
     private int tier(Player player) {
-        return Math.max(1, Math.min(5, ((magic.levelOf(player) - 1) / 20) + 1));
+        // After level 50, high-level systems scale with the same six mastery tiers.
+        return magic.unarmedTier(player);
     }
 
     private List<Player> nearbyPlayers(Player center, double radius) {
@@ -338,9 +313,7 @@ public final class AdvancedSystems implements Listener {
     void activateSpin(Player player) {
         if (!hasElement(player)) return;
         int tier = tier(player);
-        if (!cooldownReady(player, "spin")) return;
         if (!consumeMana(player, "spin", tier)) return;
-        startCooldown(player, "spin", plugin.getConfig().getInt("cooldowns.spin", 18));
         Element element = magic.getEl(player);
         double radius = 3.5 + tier * 0.65;
         showBurst(player, element, radius);
@@ -356,7 +329,7 @@ public final class AdvancedSystems implements Listener {
             target.setVelocity(away.multiply(0.45 + tier * 0.10).setY(0.15));
             target.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 25 + tier * 7, 0));
         }
-        player.sendMessage(Magic.c(element.color + "✦ الدوران العنصري اتفعل! §7(درجة " + tier + "/5)"));
+        player.sendMessage(Magic.c(element.color + "✦ الدوران العنصري اتفعل! §7(درجة " + tier + "/6)"));
         noteCast(player);
     }
 
@@ -368,9 +341,7 @@ public final class AdvancedSystems implements Listener {
             return;
         }
         int tier = tier(player);
-        if (!cooldownReady(player, "ultimate")) return;
         if (!consumeMana(player, "ultimate", tier)) return;
-        startCooldown(player, "ultimate", plugin.getConfig().getInt("cooldowns.ultimate", 180));
         Element element = magic.getEl(player);
         double radius = 8.0 + tier;
         showBurst(player, element, radius);
@@ -392,9 +363,7 @@ public final class AdvancedSystems implements Listener {
     void activateGuard(Player player) {
         if (!hasElement(player)) return;
         int tier = tier(player);
-        if (!cooldownReady(player, "guard")) return;
         if (!consumeMana(player, "guard", tier)) return;
-        startCooldown(player, "guard", plugin.getConfig().getInt("cooldowns.guard", 28));
         long duration = 4500L + tier * 500L;
         guardUntil.put(player.getUniqueId(), System.currentTimeMillis() + duration);
         Element element = magic.getEl(player);
@@ -431,9 +400,7 @@ public final class AdvancedSystems implements Listener {
             return;
         }
         int tier = tier(player);
-        if (!cooldownReady(player, "awakening")) return;
         if (!consumeMana(player, "awakening", tier)) return;
-        startCooldown(player, "awakening", plugin.getConfig().getInt("cooldowns.awakening", 300));
         Element element = magic.getEl(player);
         long durationSeconds = plugin.getConfig().getLong("awakening.duration-seconds", 30L);
         long duration = durationSeconds * 1000L;
@@ -510,12 +477,6 @@ public final class AdvancedSystems implements Listener {
             return;
         }
         long now = System.currentTimeMillis();
-        long ready = Math.max(cooldowns.getOrDefault("fusion:" + player.getUniqueId(), 0L),
-                cooldowns.getOrDefault("fusion:" + partner.getUniqueId(), 0L));
-        if (ready > now) {
-            player.sendMessage(Magic.c("§cالاندماج جاهز بعد " + ((ready - now) / 1000 + 1) + " ثانية."));
-            return;
-        }
         fusionInvites.put(partner.getUniqueId(), new FusionInvite(player.getUniqueId(), now + 30_000L));
         player.sendMessage(Magic.c("§d✦ بعتّ دعوة اندماج إلى " + partner.getName() + ". مستني موافقته."));
         partner.sendMessage(Magic.c("§d✦ " + player.getName() + " دعاك لاندماج " + firstElement.ar + " + " + secondElement.ar + "."));
@@ -550,19 +511,8 @@ public final class AdvancedSystems implements Listener {
             inviter.sendMessage(Magic.c("§cتعذّر الاندماج لأن شروطه لم تعد متحققة."));
             return;
         }
-        long now = System.currentTimeMillis();
-        String firstCooldown = "fusion:" + inviter.getUniqueId();
-        String secondCooldown = "fusion:" + partner.getUniqueId();
-        long ready = Math.max(cooldowns.getOrDefault(firstCooldown, 0L), cooldowns.getOrDefault(secondCooldown, 0L));
-        if (ready > now) {
-            partner.sendMessage(Magic.c("§cالاندماج جاهز بعد " + ((ready - now) / 1000 + 1) + " ثانية."));
-            return;
-        }
         double cost = plugin.getConfig().getDouble("mana.fusion", 38.0);
         if (!spendBoth(inviter, partner, cost)) return;
-        long nextReady = now + plugin.getConfig().getInt("cooldowns.fusion", 90) * 1000L;
-        cooldowns.put(firstCooldown, nextReady);
-        cooldowns.put(secondCooldown, nextReady);
         fusionInvites.remove(partner.getUniqueId());
         fusionInvites.entrySet().removeIf(entry -> entry.getValue().inviter().equals(inviter.getUniqueId()));
         applyFusion(inviter, partner, firstElement, secondElement);
@@ -624,9 +574,7 @@ public final class AdvancedSystems implements Listener {
             return;
         }
         int tier = tier(player);
-        if (!cooldownReady(player, "forbidden")) return;
         if (!consumeMana(player, "forbidden", tier)) return;
-        startCooldown(player, "forbidden", plugin.getConfig().getInt("cooldowns.forbidden", 240));
         Element element = magic.getEl(player);
         long forbiddenTicks = plugin.getConfig().getLong("forbidden.duration-seconds", 14L) * 20L;
         long finishAt = System.currentTimeMillis() + forbiddenTicks * 50L;
@@ -674,9 +622,7 @@ public final class AdvancedSystems implements Listener {
     }
 
     private void useRelic(Player player, String id) {
-        if (!cooldownReady(player, "relic-" + id)) return;
         if (!consumeMana(player, "relic", 1)) return;
-        startCooldown(player, "relic-" + id, plugin.getConfig().getInt("cooldowns.relic", 40));
         switch (id) {
             case "tide" -> {
                 player.addPotionEffect(new PotionEffect(PotionEffectType.REGENERATION, 180, 1));
@@ -790,7 +736,6 @@ public final class AdvancedSystems implements Listener {
 
     private void tickCompanions() {
         long now = System.currentTimeMillis();
-        cooldowns.entrySet().removeIf(entry -> entry.getValue() <= now);
         fusionInvites.entrySet().removeIf(entry -> entry.getValue().expiresAt() <= now);
         guardUntil.entrySet().removeIf(entry -> entry.getValue() <= now);
         awakeningUntil.entrySet().removeIf(entry -> entry.getValue() <= now);
@@ -992,9 +937,7 @@ public final class AdvancedSystems implements Listener {
             player.sendMessage(Magic.c("§d✦ اكتشفت تحول: §f" + transformationName(magic.getEl(player))));
         }
         int tier = tier(player);
-        if (!cooldownReady(player, "transform")) return;
         if (!consumeMana(player, "transformation", tier)) return;
-        startCooldown(player, "transform", plugin.getConfig().getInt("cooldowns.transformation", 180));
         Element element = magic.getEl(player);
         long durationTicks = plugin.getConfig().getLong("transformation.duration-seconds", 35L) * 20L;
         transformationUntil.put(player.getUniqueId(), System.currentTimeMillis() + durationTicks * 50L);
@@ -1099,7 +1042,6 @@ public final class AdvancedSystems implements Listener {
         forbiddenUntil.remove(uuid);
         transformationUntil.remove(uuid);
         lastTravelLocation.remove(uuid);
-        cooldowns.keySet().removeIf(key -> key.startsWith(uuid + ":") || key.startsWith("fusion:" + uuid));
         fusionInvites.remove(uuid);
         fusionInvites.entrySet().removeIf(entry -> entry.getValue().inviter().equals(uuid));
         data.set(path(player), null);

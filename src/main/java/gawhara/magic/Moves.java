@@ -11,6 +11,7 @@ import org.bukkit.entity.FallingBlock;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Wolf;
+import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.util.Vector;
@@ -39,118 +40,118 @@ final class Moves {
         boolean run(Moves engine, Player player, int tier);
     }
 
-    record Mv(String name, String desc, double cost, int cd, Cast cast) {}
+    record Mv(String name, String desc, double cost, Cast cast) {}
 
     static final Map<Element, Mv[]> MV = new EnumMap<>(Element.class);
 
     static {
         MV.put(Element.FIRE, new Mv[]{
-                new Mv("لغم الجمر", "تزرع فخًا ناريًا ينفجر عند اقتراب الخصم", 5, 9, Moves::fireEmberMine),
-                new Mv("درب الرماد", "تترك خلفك طريقًا مشتعلًا يضر من يطارده", 5, 11, Moves::fireCinderTrail),
-                new Mv("كماشة الحمم", "أعمدة حمم تحاصر الهدف ثم تنفجر للداخل", 6, 13, Moves::fireMagmaSnare),
-                new Mv("قوس اللهب", "قوس ناري واسع يمسح المنطقة أمامك", 5, 8, Moves::fireCrescent),
-                new Mv("بعث العنقاء", "تستعيد جزءًا من حياتك وتطرد آثار السم والذبول", 7, 32, Moves::firePhoenixPulse),
-                new Mv("مطر الشرر", "شرارات متساقطة تطارد مساحة التصويب لعدة لحظات", 8, 21, Moves::fireCinderRain),
-                new Mv("زفير التنين", "زفير ناري متحرك يمسح مخروطًا أمامك", 10, 42, Moves::fireDragonBreath)
+                new Mv("لغم الجمر", "تزرع فخًا ناريًا ينفجر عند اقتراب الخصم", 5, Moves::fireEmberMine),
+                new Mv("درب الرماد", "تترك خلفك طريقًا مشتعلًا يضر من يطارده", 5, Moves::fireCinderTrail),
+                new Mv("كماشة الحمم", "أعمدة حمم تحاصر الهدف ثم تنفجر للداخل", 6, Moves::fireMagmaSnare),
+                new Mv("قوس اللهب", "قوس ناري واسع يمسح المنطقة أمامك", 5, Moves::fireCrescent),
+                new Mv("بعث العنقاء", "تستعيد جزءًا من حياتك وتطرد آثار السم والذبول", 7, Moves::firePhoenixPulse),
+                new Mv("مطر الشرر", "شرارات متساقطة تطارد مساحة التصويب لعدة لحظات", 8, Moves::fireCinderRain),
+                new Mv("زفير التنين", "زفير ناري متحرك يمسح مخروطًا أمامك", 10, Moves::fireDragonBreath)
         });
         MV.put(Element.WATER, new Mv[]{
-                new Mv("السحب العكسي", "تيار يسحب هدفًا محددًا نحوك على دفعات", 5, 9, Moves::waterUndertow),
-                new Mv("مرآة الماء", "تذوب في رذاذ مائي وتترك انعكاسات مضللة", 6, 18, Moves::waterMirror),
-                new Mv("مطر الينبوع", "أمطار علاجية متتابعة في المكان المحدد", 6, 15, Moves::waterSpringfall),
-                new Mv("نفاث الضغط", "تيار مركز يضغط الهدف ويدفعه بعيدًا", 5, 8, Moves::waterPressureJet),
-                new Mv("دوامة المد", "تجبر الأعداء على الدوران حول مركز مائي", 7, 17, Moves::waterWhirlpool),
-                new Mv("ستار الضباب", "ضباب يخفي الحلفاء ويشوّش رؤية الخصوم", 6, 22, Moves::waterMistVeil),
-                new Mv("زحف الليفياثان", "جدار موجة عريض يعبر الساحة ويجرف الخصوم", 10, 45, Moves::waterLeviathanWave)
+                new Mv("السحب العكسي", "تيار يسحب هدفًا محددًا نحوك على دفعات", 5, Moves::waterUndertow),
+                new Mv("مرآة الماء", "تذوب في رذاذ مائي وتترك انعكاسات مضللة", 6, Moves::waterMirror),
+                new Mv("مطر الينبوع", "أمطار علاجية متتابعة في المكان المحدد", 6, Moves::waterSpringfall),
+                new Mv("نفاث الضغط", "تيار مركز يضغط الهدف ويدفعه بعيدًا", 5, Moves::waterPressureJet),
+                new Mv("دوامة المد", "تجبر الأعداء على الدوران حول مركز مائي", 7, Moves::waterWhirlpool),
+                new Mv("ستار الضباب", "ضباب يخفي الحلفاء ويشوّش رؤية الخصوم", 6, Moves::waterMistVeil),
+                new Mv("زحف الليفياثان", "جدار موجة عريض يعبر الساحة ويجرف الخصوم", 10, Moves::waterLeviathanWave)
         });
         MV.put(Element.EARTH, new Mv[]{
-                new Mv("الصخرة الدوارة", "تدفع صخرة متدحرجة تكبر خطورتها مع تقدمها", 5, 10, Moves::earthBoulderRoll),
-                new Mv("الصدع الزاحف", "شق أرضي يتقدم أمامك ويقذف الصخور من تحته", 6, 13, Moves::earthCreepingFault),
-                new Mv("مرساة الجبل", "تثقل هدفًا وتمنعه من القفز أو الاندفاع", 5, 12, Moves::earthMountainAnchor),
-                new Mv("نبض الصفائح", "صفائح أرضية ترتفع بالتتابع تحت الأعداء", 6, 14, Moves::earthPlatePulse),
-                new Mv("خطوة الهضبة", "ترفعك صخرة عالية ثم تهبط بضربة مركزة", 6, 18, Moves::earthPlateauStep),
-                new Mv("انهيار الوادي", "تساقط صخري متفرق يغلق مساحة التصويب", 8, 23, Moves::earthAvalanche),
-                new Mv("زحزحة القارات", "تجذب الخصوم إلى مركز ثم تقذفهم على أطرافه", 10, 48, Moves::earthContinentalShift)
+                new Mv("الصخرة الدوارة", "تدفع صخرة متدحرجة تكبر خطورتها مع تقدمها", 5, Moves::earthBoulderRoll),
+                new Mv("الصدع الزاحف", "شق أرضي يتقدم أمامك ويقذف الصخور من تحته", 6, Moves::earthCreepingFault),
+                new Mv("مرساة الجبل", "تثقل هدفًا وتمنعه من القفز أو الاندفاع", 5, Moves::earthMountainAnchor),
+                new Mv("نبض الصفائح", "صفائح أرضية ترتفع بالتتابع تحت الأعداء", 6, Moves::earthPlatePulse),
+                new Mv("خطوة الهضبة", "ترفعك صخرة عالية ثم تهبط بضربة مركزة", 6, Moves::earthPlateauStep),
+                new Mv("انهيار الوادي", "تساقط صخري متفرق يغلق مساحة التصويب", 8, Moves::earthAvalanche),
+                new Mv("زحزحة القارات", "تجذب الخصوم إلى مركز ثم تقذفهم على أطرافه", 10, Moves::earthContinentalShift)
         });
         MV.put(Element.WIND, new Mv[]{
-                new Mv("شفرة الضغط", "شفرتان هوائيتان متقاطعتان تقطعان أمامك", 4, 7, Moves::windPressureShear),
-                new Mv("انزلاق الغيم", "تنزلق بمحاذاة الأرض وتترك تيارًا يبطئ المطاردين", 5, 11, Moves::windCloudSkate),
-                new Mv("هبوط الريشة", "تحكم في سقوطك وسقوط الحلفاء القريبين", 4, 14, Moves::windFeatherFall),
-                new Mv("رفع الإعصار", "يرفع هدفًا ويديره في الهواء قبل إسقاطه", 6, 15, Moves::windCycloneLift),
-                new Mv("المجرى الهوائي", "تصنع ممرًا يمنح الحلفاء سرعة عند عبوره", 5, 20, Moves::windSlipstream),
-                new Mv("جيب الفراغ", "تسحب الهواء من حول خصومك ثم تطلقه دفعة واحدة", 7, 21, Moves::windAirPocket),
-                new Mv("كاسر السماء", "ترفع الأعداء أمامك ثم تسحقهم بهبوط هوائي", 10, 44, Moves::windSkybreaker)
+                new Mv("طيران الرياح", "تحيط بك الرياح أولًا، ثم تخرج دفعات الهواء من قدميك، وفي التطور الأخير تصبح كتلة من الرياح أثناء الطيران", 1, Moves::windFlight),
+                new Mv("شفرة الضغط", "شفرتان هوائيتان متقاطعتان تقطعان أمامك", 4, Moves::windPressureShear),
+                new Mv("انزلاق الغيم", "تنزلق بمحاذاة الأرض وتترك تيارًا يبطئ المطاردين", 5, Moves::windCloudSkate),
+                new Mv("رفع الإعصار", "يرفع هدفًا ويديره في الهواء قبل إسقاطه", 6, Moves::windCycloneLift),
+                new Mv("المجرى الهوائي", "تصنع ممرًا يمنح الحلفاء سرعة عند عبوره", 5, Moves::windSlipstream),
+                new Mv("جيب الفراغ", "تسحب الهواء من حول خصومك ثم تطلقه دفعة واحدة", 7, Moves::windAirPocket),
+                new Mv("كاسر السماء", "ترفع الأعداء أمامك ثم تسحقهم بهبوط هوائي", 10, Moves::windSkybreaker)
         });
         MV.put(Element.LIGHTNING, new Mv[]{
-                new Mv("المكثف", "تجمع شحنة أثناء الحركة ثم تفرغها على القريبين", 5, 12, Moves::lightningCapacitor),
-                new Mv("سحب الشحنة", "تسرق حركة الهدف وتحولها إلى سرعة لك", 5, 10, Moves::lightningStaticSiphon),
-                new Mv("قضبان التأريض", "تضع نقاط جذب تستدعي ضربات برق متتابعة", 7, 19, Moves::lightningGroundingRods),
-                new Mv("الانتقال الكهرومغناطيسي", "تنجذب إلى هدف مشحون وتظهر بجواره", 6, 14, Moves::lightningRailJump),
-                new Mv("فرقعة الرعد", "تطلق فرقعة مؤجلة تربك من يسمعها", 6, 16, Moves::lightningThunderclap),
-                new Mv("الحمل الزائد", "تدخل حالة شحن تضرب أقرب خصم على فترات", 8, 27, Moves::lightningOvercharge),
-                new Mv("قفص العاصفة", "أعمدة برق تحاصر مساحة وتضرب من بداخلها", 10, 48, Moves::lightningStormCage)
+                new Mv("المكثف", "تجمع شحنة أثناء الحركة ثم تفرغها على القريبين", 5, Moves::lightningCapacitor),
+                new Mv("سحب الشحنة", "تسرق حركة الهدف وتحولها إلى سرعة لك", 5, Moves::lightningStaticSiphon),
+                new Mv("قضبان التأريض", "تضع نقاط جذب تستدعي ضربات برق متتابعة", 7, Moves::lightningGroundingRods),
+                new Mv("الانتقال الكهرومغناطيسي", "تنجذب إلى هدف مشحون وتظهر بجواره", 6, Moves::lightningRailJump),
+                new Mv("فرقعة الرعد", "تطلق فرقعة مؤجلة تربك من يسمعها", 6, Moves::lightningThunderclap),
+                new Mv("الحمل الزائد", "تدخل حالة شحن تضرب أقرب خصم على فترات", 8, Moves::lightningOvercharge),
+                new Mv("قفص العاصفة", "أعمدة برق تحاصر مساحة وتضرب من بداخلها", 10, Moves::lightningStormCage)
         });
         MV.put(Element.SHADOW, new Mv[]{
-                new Mv("النسخ الشبحية", "تظهر ظلالًا وهمية حولك ثم تندفع نحو خصومك", 5, 12, Moves::shadowAfterimages),
-                new Mv("تبادل الظلال", "تبدل مكانك مع هدف تختاره", 6, 14, Moves::shadowPositionSwap),
-                new Mv("نظرة الرعب", "تجبر هدفًا على التراجع تحت تأثير الخوف", 5, 12, Moves::shadowDreadGaze),
-                new Mv("مصاص الليل", "تستنزف حياة هدف على دفعات وتستعيدها لنفسك", 7, 18, Moves::shadowNightLeech),
-                new Mv("الطعنة الغائبة", "تختفي ثم تظهر خلف أقرب خصم وتصيبه", 6, 15, Moves::shadowVoidStab),
-                new Mv("دين الظلام", "تضع لعنة تنفجر بعد مهلة وتزداد في الأماكن المعتمة", 8, 24, Moves::shadowUmbralDebt),
-                new Mv("مطاردة الكسوف", "تختفي وتلاحق هدفًا بعينه بضربة ختامية", 10, 46, Moves::shadowEclipseHunt)
+                new Mv("النسخ الشبحية", "تظهر ظلالًا وهمية حولك ثم تندفع نحو خصومك", 5, Moves::shadowAfterimages),
+                new Mv("تبادل الظلال", "تبدل مكانك مع هدف تختاره", 6, Moves::shadowPositionSwap),
+                new Mv("نظرة الرعب", "تجبر هدفًا على التراجع تحت تأثير الخوف", 5, Moves::shadowDreadGaze),
+                new Mv("مصاص الليل", "تستنزف حياة هدف على دفعات وتستعيدها لنفسك", 7, Moves::shadowNightLeech),
+                new Mv("الطعنة الغائبة", "تختفي ثم تظهر خلف أقرب خصم وتصيبه", 6, Moves::shadowVoidStab),
+                new Mv("دين الظلام", "تضع لعنة تنفجر بعد مهلة وتزداد في الأماكن المعتمة", 8, Moves::shadowUmbralDebt),
+                new Mv("مطاردة الكسوف", "تختفي وتلاحق هدفًا بعينه بضربة ختامية", 10, Moves::shadowEclipseHunt)
         });
         MV.put(Element.ICE, new Mv[]{
-                new Mv("انزلاق الصقيع", "تندفع على الأرض وتترك مسارًا يجمد المطاردين", 5, 10, Moves::iceSkate),
-                new Mv("وسم الصقيع", "تراكم طبقات برد على هدف حتى يتجمد", 5, 11, Moves::iceFrostbiteBrand),
-                new Mv("سجن البلور الجليدي", "تغلق على هدف دائرة جليدية تضيق تدريجيًا", 6, 16, Moves::iceMirrorPrison),
-                new Mv("تقاطع النوازل", "رماح جليد تهبط من جهات متقاطعة حول الهدف", 6, 15, Moves::iceIcicleCross),
-                new Mv("العمى الأبيض", "عاصفة ثلجية تحجب الرؤية وتثقل الحركة", 6, 19, Moves::iceWhiteout),
-                new Mv("مزلجة النهر", "تشق طريقًا جليديًا سريعًا وتجر من يعترضك", 7, 22, Moves::iceGlacierSlide),
-                new Mv("الصفر المطلق", "تجمع الصقيع ثم تجمد مساحة كاملة لحظة إطلاقه", 10, 48, Moves::iceAbsoluteZero)
+                new Mv("انزلاق الصقيع", "تندفع على الأرض وتترك مسارًا يجمد المطاردين", 5, Moves::iceSkate),
+                new Mv("وسم الصقيع", "تراكم طبقات برد على هدف حتى يتجمد", 5, Moves::iceFrostbiteBrand),
+                new Mv("سجن البلور الجليدي", "تغلق على هدف دائرة جليدية تضيق تدريجيًا", 6, Moves::iceMirrorPrison),
+                new Mv("تقاطع النوازل", "رماح جليد تهبط من جهات متقاطعة حول الهدف", 6, Moves::iceIcicleCross),
+                new Mv("العمى الأبيض", "عاصفة ثلجية تحجب الرؤية وتثقل الحركة", 6, Moves::iceWhiteout),
+                new Mv("مزلجة النهر", "تشق طريقًا جليديًا سريعًا وتجر من يعترضك", 7, Moves::iceGlacierSlide),
+                new Mv("الصفر المطلق", "تجمع الصقيع ثم تجمد مساحة كاملة لحظة إطلاقه", 10, Moves::iceAbsoluteZero)
         });
         MV.put(Element.METAL, new Mv[]{
-                new Mv("حقل الجذب", "تجذب الخصوم والأغراض المتحركة نحو قطبك", 5, 12, Moves::metalMagneticField),
-                new Mv("مدار الشفرات", "شفرات حديدية تدور حولك ثم تنطلق نحو الأهداف", 6, 17, Moves::metalBladeOrbit),
-                new Mv("الارتداد المعدني", "مقذوف يرتد بين عدة خصوم قبل أن يتوقف", 6, 14, Moves::metalRicochet),
-                new Mv("خطاف السلاسل", "تثبت خطافًا وتسحب نفسك أو الهدف حسب نقطة الإصابة", 5, 11, Moves::metalChainGrapple),
-                new Mv("النبضة القطبية", "تعكس اتجاه حركة الخصوم حولك بقوة مغناطيسية", 6, 15, Moves::metalPolarRepulsion),
-                new Mv("الحدادة الحية", "تغلفك صفائح متحركة تمتص الضربات القليلة القادمة", 7, 24, Moves::metalLivingForge),
-                new Mv("كبش الحصار", "اندفاعة ثقيلة مستقيمة تصدم كل من يقف في مسارك", 10, 42, Moves::metalSiegeRam)
+                new Mv("حقل الجذب", "تجذب الخصوم والأغراض المتحركة نحو قطبك", 5, Moves::metalMagneticField),
+                new Mv("مدار الشفرات", "شفرات حديدية تدور حولك ثم تنطلق نحو الأهداف", 6, Moves::metalBladeOrbit),
+                new Mv("الارتداد المعدني", "مقذوف يرتد بين عدة خصوم قبل أن يتوقف", 6, Moves::metalRicochet),
+                new Mv("خطاف السلاسل", "تثبت خطافًا وتسحب نفسك أو الهدف حسب نقطة الإصابة", 5, Moves::metalChainGrapple),
+                new Mv("النبضة القطبية", "تعكس اتجاه حركة الخصوم حولك بقوة مغناطيسية", 6, Moves::metalPolarRepulsion),
+                new Mv("الحدادة الحية", "تغلفك صفائح متحركة تمتص الضربات القليلة القادمة", 7, Moves::metalLivingForge),
+                new Mv("كبش الحصار", "اندفاعة ثقيلة مستقيمة تصدم كل من يقف في مسارك", 10, Moves::metalSiegeRam)
         });
         MV.put(Element.NATURE, new Mv[]{
-                new Mv("وسادة الوثب", "تنمو ورقة نابضة تقذف أول كائن يطأها إلى الأعلى", 5, 15, Moves::natureSpringPad),
-                new Mv("غبار اللقاح", "سحابة لقاح تربك الخصوم وتبطئهم", 5, 13, Moves::naturePollenCloud),
-                new Mv("رابطة الحياة", "تربطك بحليف وتوزع عليه الشفاء معك", 6, 17, Moves::natureLifeBond),
-                new Mv("سوط الكروم", "كرمة تمتد وتلتف حول هدف ثم تشده", 6, 13, Moves::natureVineLash),
-                new Mv("الزهرة المفترسة", "تطلق فم زهرة يعض الأعداء عند اقترابهم", 7, 18, Moves::naturePredatorBloom),
-                new Mv("النمو البري", "كل خطوة لك تترك أثرًا يعالج الحلفاء ويؤذي الخصوم", 7, 25, Moves::natureWildGrowth),
-                new Mv("نداء القطيع", "تستدعي ذئابًا حليفة لفترة قصيرة", 10, 50, Moves::natureWildHunt)
+                new Mv("وسادة الوثب", "تنمو ورقة نابضة تقذف أول كائن يطأها إلى الأعلى", 5, Moves::natureSpringPad),
+                new Mv("غبار اللقاح", "سحابة لقاح تربك الخصوم وتبطئهم", 5, Moves::naturePollenCloud),
+                new Mv("رابطة الحياة", "تربطك بحليف وتوزع عليه الشفاء معك", 6, Moves::natureLifeBond),
+                new Mv("سوط الكروم", "كرمة تمتد وتلتف حول هدف ثم تشده", 6, Moves::natureVineLash),
+                new Mv("الزهرة المفترسة", "تطلق فم زهرة يعض الأعداء عند اقترابهم", 7, Moves::naturePredatorBloom),
+                new Mv("النمو البري", "كل خطوة لك تترك أثرًا يعالج الحلفاء ويؤذي الخصوم", 7, Moves::natureWildGrowth),
+                new Mv("نداء القطيع", "تستدعي ذئابًا حليفة لفترة قصيرة", 10, Moves::natureWildHunt)
         });
         MV.put(Element.LIGHT, new Mv[]{
-                new Mv("انكسار الطيف", "تقسم الضوء عند نقطة التصويب إلى مسارات متعددة", 5, 11, Moves::lightPrismSplit),
-                new Mv("وسم الشمس", "تضع علامة مضيئة تنفجر إذا بقي الهدف مكشوفًا", 5, 13, Moves::lightSunBrand),
-                new Mv("ملاذ الفجر", "تطهر الحلفاء القريبين من التأثيرات السلبية", 6, 18, Moves::lightDawnSanctuary),
-                new Mv("خطوة الطيف", "تنتقل إلى موضع مضيء آمن ضمن مجال نظرك", 6, 15, Moves::lightSpectrumStep),
-                new Mv("التركيز الشمسي", "تجمع ضوء المكان وتزيد قوتك بحسب الإضاءة", 7, 24, Moves::lightSolarFocus),
-                new Mv("هالة الكشف", "تكشف الأعداء وتضعف من يحاول الاختباء", 6, 20, Moves::lightRevelationHalo),
-                new Mv("حكم السماء", "عمود نور يتعقب أهدافك المحددة من أعلى", 10, 46, Moves::lightCelestialJudgment)
+                new Mv("انكسار الطيف", "تقسم الضوء عند نقطة التصويب إلى مسارات متعددة", 5, Moves::lightPrismSplit),
+                new Mv("وسم الشمس", "تضع علامة مضيئة تنفجر إذا بقي الهدف مكشوفًا", 5, Moves::lightSunBrand),
+                new Mv("ملاذ الفجر", "تطهر الحلفاء القريبين من التأثيرات السلبية", 6, Moves::lightDawnSanctuary),
+                new Mv("خطوة الطيف", "تنتقل إلى موضع مضيء آمن ضمن مجال نظرك", 6, Moves::lightSpectrumStep),
+                new Mv("التركيز الشمسي", "تجمع ضوء المكان وتزيد قوتك بحسب الإضاءة", 7, Moves::lightSolarFocus),
+                new Mv("هالة الكشف", "تكشف الأعداء وتضعف من يحاول الاختباء", 6, Moves::lightRevelationHalo),
+                new Mv("حكم السماء", "عمود نور يتعقب أهدافك المحددة من أعلى", 10, Moves::lightCelestialJudgment)
         });
         MV.put(Element.SOUND, new Mv[]{
-                new Mv("رنين الحركة", "يربط هدفًا باهتزازات تنفجر عندما يتحرك", 5, 12, Moves::soundMotionResonance),
-                new Mv("حقل الصمت", "يخمد المنطقة ويبطئ من بداخلها", 5, 15, Moves::soundSilenceField),
-                new Mv("رادار الصدى", "يكشف الكائنات القريبة حتى خلف الجدران", 4, 18, Moves::soundEchoRadar),
-                new Mv("خطوة الصدى", "تترك نسخة صوتية من موقعك وتعود إليها بعد لحظة", 6, 17, Moves::soundReverbStep),
-                new Mv("الرفع التوافقي", "يرفع الخصوم بنبضات صوتية متصاعدة", 6, 16, Moves::soundHarmonicLift),
-                new Mv("التردد المعاكس", "يقلب اتجاه اندفاع الخصم ويكسر توازنه", 7, 20, Moves::soundFeedbackLoop),
-                new Mv("النغمة الأخيرة", "تصاعد نغمي بثلاث موجات أقوى من السابقة", 10, 45, Moves::soundFinalCrescendo)
+                new Mv("رنين الحركة", "يربط هدفًا باهتزازات تنفجر عندما يتحرك", 5, Moves::soundMotionResonance),
+                new Mv("حقل الصمت", "يخمد المنطقة ويبطئ من بداخلها", 5, Moves::soundSilenceField),
+                new Mv("رادار الصدى", "يكشف الكائنات القريبة حتى خلف الجدران", 4, Moves::soundEchoRadar),
+                new Mv("خطوة الصدى", "تترك نسخة صوتية من موقعك وتعود إليها بعد لحظة", 6, Moves::soundReverbStep),
+                new Mv("الرفع التوافقي", "يرفع الخصوم بنبضات صوتية متصاعدة", 6, Moves::soundHarmonicLift),
+                new Mv("التردد المعاكس", "يقلب اتجاه اندفاع الخصم ويكسر توازنه", 7, Moves::soundFeedbackLoop),
+                new Mv("النغمة الأخيرة", "تصاعد نغمي بثلاث موجات أقوى من السابقة", 10, Moves::soundFinalCrescendo)
         });
         MV.put(Element.CRYSTAL, new Mv[]{
-                new Mv("منجم الجيود", "تزرع شظايا بلور تنفجر عند اقتراب الخصم", 5, 13, Moves::crystalGeodeMine),
-                new Mv("قلب الأوجه", "تكوّن أوجهًا بلورية تمتص الضرر ثم تتشقق", 6, 20, Moves::crystalFacetHeart),
-                new Mv("انكسار المنشور", "تطلق أشعة منعكسة بزوايا مختلفة", 6, 14, Moves::crystalPrismRefraction),
-                new Mv("نمو البلور", "أعمدة بلورية تنمو حول الهدف وتحبسه", 6, 16, Moves::crystalGrowth),
-                new Mv("كسر الرنين", "تزرع شقوقًا بلورية تتفجر بعد اكتمال الرنين", 7, 19, Moves::crystalResonantFracture),
-                new Mv("خطوة التشظي", "تتشظى إلى نقطة أمامك وتترك شظايا خلفك", 6, 15, Moves::crystalShatterstep),
-                new Mv("إزهار الماس", "زهرة بلورية تتفتح طبقة بعد طبقة وتطلق شظايا", 10, 48, Moves::crystalDiamondBloom)
+                new Mv("منجم الجيود", "تزرع شظايا بلور تنفجر عند اقتراب الخصم", 5, Moves::crystalGeodeMine),
+                new Mv("قلب الأوجه", "تكوّن أوجهًا بلورية تمتص الضرر ثم تتشقق", 6, Moves::crystalFacetHeart),
+                new Mv("انكسار المنشور", "تطلق أشعة منعكسة بزوايا مختلفة", 6, Moves::crystalPrismRefraction),
+                new Mv("نمو البلور", "أعمدة بلورية تنمو حول الهدف وتحبسه", 6, Moves::crystalGrowth),
+                new Mv("كسر الرنين", "تزرع شقوقًا بلورية تتفجر بعد اكتمال الرنين", 7, Moves::crystalResonantFracture),
+                new Mv("خطوة التشظي", "تتشظى إلى نقطة أمامك وتترك شظايا خلفك", 6, Moves::crystalShatterstep),
+                new Mv("إزهار الماس", "زهرة بلورية تتفتح طبقة بعد طبقة وتطلق شظايا", 10, Moves::crystalDiamondBloom)
         });
         // Shapeshift owns ten native form abilities; it has no generic extra-move templates.
         MV.put(Element.SHAPESHIFT, new Mv[0]);
@@ -185,6 +186,10 @@ final class Moves {
 
     private void hurt(Player p, LivingEntity target, double amount) {
         if (target != null && !target.isDead()) pm.hurt(p, target, amount);
+    }
+
+    private void applyVelocity(Player caster, Entity target, Vector velocity) {
+        target.setVelocity(pm.environmentVector(caster, velocity));
     }
 
     private void fx(Location at, Particle particle, int count, double x, double y, double z, double speed) {
@@ -227,12 +232,19 @@ final class Moves {
         return pm.firstTarget(p, range);
     }
 
-    private void slow(LivingEntity e, int ticks, int amplifier) {
-        pm.effect(e, PotionEffectType.SLOWNESS, ticks, amplifier);
+    private void slow(Player caster, LivingEntity e, int ticks, int amplifier) {
+        pm.effect(e, PotionEffectType.SLOWNESS, pm.environmentDuration(caster, ticks), amplifier);
     }
 
-    private void freeze(LivingEntity e, int ticks) {
-        e.setFreezeTicks(Math.min(e.getMaxFreezeTicks(), Math.max(e.getFreezeTicks(), ticks)));
+    private void freeze(Player caster, LivingEntity e, int ticks) {
+        int boostedTicks = pm.environmentDuration(caster, ticks);
+        e.setFreezeTicks(Math.min(e.getMaxFreezeTicks(), Math.max(e.getFreezeTicks(), boostedTicks)));
+    }
+
+    private void applyEffect(Player caster, LivingEntity target, PotionEffectType type, int ticks,
+                             int amplifier, boolean ambient, boolean particles) {
+        target.addPotionEffect(new PotionEffect(type, pm.environmentDuration(caster, ticks),
+                amplifier, ambient, particles));
     }
 
     private Location safeGround(Location point) {
@@ -255,7 +267,12 @@ final class Moves {
     }
 
     private void heal(Player player, double amount) {
-        player.setHealth(Math.min(player.getMaxHealth(), player.getHealth() + amount));
+        heal(player, player, amount);
+    }
+
+    private void heal(Player caster, Player target, double amount) {
+        double boosted = amount * pm.environmentMultiplier(caster);
+        target.setHealth(Math.min(target.getMaxHealth(), target.getHealth() + boosted));
     }
 
     private boolean sameSchool(Player a, Player b) {
@@ -303,7 +320,7 @@ final class Moves {
                     fx(mine, Particle.EXPLOSION, 1, 0, 0, 0, 0);
                     fx(mine, Particle.LAVA, 35, 1.1, 0.35, 1.1, 0.05);
                     for (LivingEntity e : foes(p, mine, 3.2)) {
-                        hurt(p, e, power(tier, 5.0)); e.setFireTicks(80 + tier * 8);
+                        hurt(p, e, power(tier, 5.0)); e.setFireTicks(pm.environmentDuration(p, 80 + tier * 8));
                     }
                     sound(mine, Sound.ENTITY_GENERIC_EXPLODE, 0.8f);
                     cancel();
@@ -325,7 +342,7 @@ final class Moves {
                 fx(step, Particle.SMOKE, 3, 0.25, 0.05, 0.25, 0.01);
                 for (LivingEntity e : foes(p, step, 1.35)) {
                     if (burned.add(e.getUniqueId())) {
-                        e.setFireTicks(80 + tier * 8);
+                        e.setFireTicks(pm.environmentDuration(p, 80 + tier * 8));
                         hurt(p, e, power(tier, 4.0));
                     }
                 }
@@ -352,8 +369,8 @@ final class Moves {
                     fx(pillar, Particle.FLAME, 4, 0.12, 0.35, 0.12, 0.01);
                 }
                 for (LivingEntity e : foes(p, center, 3.1)) {
-                    slow(e, 14, 5);
-                    if (stage == 5) { hurt(p, e, power(tier, 7.0)); e.setFireTicks(80); }
+                    slow(p, e, 14, 5);
+                    if (stage == 5) { hurt(p, e, power(tier, 7.0)); e.setFireTicks(pm.environmentDuration(p, 80)); }
                 }
                 if (stage == 5) sound(center, Sound.BLOCK_LAVA_EXTINGUISH, 0.7f);
             }
@@ -374,7 +391,7 @@ final class Moves {
             fx(point, Particle.FLAME, 5, 0.18, 0.14, 0.18, 0.02);
             fx(point, Particle.SOUL_FIRE_FLAME, 2, 0.12, 0.1, 0.12, 0.01);
             for (LivingEntity e : foes(p, point, 1.25)) {
-                if (hit.add(e.getUniqueId())) { hurt(p, e, power(tier, 4.5)); e.setFireTicks(70); }
+                if (hit.add(e.getUniqueId())) { hurt(p, e, power(tier, 4.5)); e.setFireTicks(pm.environmentDuration(p, 70)); }
             }
         }
         sound(eye, Sound.ENTITY_PLAYER_ATTACK_SWEEP, 0.55f);
@@ -387,7 +404,7 @@ final class Moves {
         p.removePotionEffect(PotionEffectType.POISON);
         p.removePotionEffect(PotionEffectType.WITHER);
         p.removePotionEffect(PotionEffectType.SLOWNESS);
-        p.addPotionEffect(new org.bukkit.potion.PotionEffect(PotionEffectType.FIRE_RESISTANCE, 140, 0, true, true));
+        applyEffect(p, p, PotionEffectType.FIRE_RESISTANCE, 140, 0, true, true);
         Location c = p.getLocation().add(0, 0.4, 0);
         for (int i = 0; i < 3; i++) {
             ring(c.clone().add(0, i * 0.45, 0), 1.1 + i * 0.75, Particle.FLAME, 36);
@@ -413,7 +430,7 @@ final class Moves {
                     fx(ember, Particle.FLAME, 4, 0.1, 0.12, 0.1, 0.02);
                     fx(landing, Particle.LAVA, 3, 0.25, 0.1, 0.25, 0.01);
                     for (LivingEntity e : foes(p, landing, 1.15)) {
-                        hurt(p, e, power(tier, 1.5)); e.setFireTicks(45);
+                        hurt(p, e, power(tier, 1.5)); e.setFireTicks(pm.environmentDuration(p, 45));
                     }
                 }
             }
@@ -437,7 +454,7 @@ final class Moves {
                         fx(point, Particle.SOUL_FIRE_FLAME, 3, 0.2, 0.18, 0.2, 0.03);
                         fx(point, Particle.FLAME, 4, 0.3, 0.2, 0.3, 0.04);
                         for (LivingEntity e : foes(p, point, 1.0)) {
-                            if (hit.add(e.getUniqueId())) { hurt(p, e, power(tier, 8.0)); e.setFireTicks(120); }
+                            if (hit.add(e.getUniqueId())) { hurt(p, e, power(tier, 8.0)); e.setFireTicks(pm.environmentDuration(p, 120)); }
                         }
                     }
                 }
@@ -459,7 +476,7 @@ final class Moves {
                 Vector pull = p.getLocation().toVector().subtract(victim.getLocation().toVector());
                 if (pull.lengthSquared() < 1.5) { cancel(); return; }
                 pull.normalize().multiply(0.62).setY(0.12);
-                victim.setVelocity(pull);
+                applyVelocity(p, victim, pull);
                 fx(victim.getLocation(), Particle.BUBBLE, 9, 0.3, 0.45, 0.3, 0.04);
                 if (n % 3 == 0) hurt(p, victim, power(tier, 1.2));
             }
@@ -469,8 +486,8 @@ final class Moves {
 
     private boolean waterMirror(Player p, int tier) {
         Location origin = p.getLocation();
-        p.addPotionEffect(new org.bukkit.potion.PotionEffect(PotionEffectType.INVISIBILITY, 100, 0, true, false));
-        p.addPotionEffect(new org.bukkit.potion.PotionEffect(PotionEffectType.SPEED, 100, 1, true, false));
+        applyEffect(p, p, PotionEffectType.INVISIBILITY, 100, 0, true, false);
+        applyEffect(p, p, PotionEffectType.SPEED, 100, 1, true, false);
         sound(origin, Sound.BLOCK_AMETHYST_BLOCK_CHIME, 1.6f);
         new BukkitRunnable() {
             int n = 0;
@@ -500,7 +517,7 @@ final class Moves {
                 fx(fixed.clone().add(0, 4, 0), Particle.FALLING_WATER, 18, 2.1, 0.4, 2.1, 0.04);
                 ring(fixed, 2.4, Particle.SPLASH, 24);
                 for (Player ally : allies(p, fixed, 4.2)) {
-                    heal(ally, 0.8 + tier * 0.12);
+                    heal(p, ally, 0.8 + tier * 0.12);
                     ally.setFireTicks(0);
                     ally.removePotionEffect(PotionEffectType.POISON);
                     ally.removePotionEffect(PotionEffectType.WITHER);
@@ -525,7 +542,7 @@ final class Moves {
                     if (!point.getBlock().isPassable()) break;
                     for (LivingEntity e : foes(p, point, 0.85)) {
                         Vector shove = dir.clone().multiply(0.95).setY(0.16);
-                        e.setVelocity(shove);
+                        applyVelocity(p, e, shove);
                         if (struck.add(e.getUniqueId())) hurt(p, e, power(tier, 5.0));
                     }
                 }
@@ -548,7 +565,7 @@ final class Moves {
                     Vector offset = center.toVector().subtract(e.getLocation().toVector());
                     Vector tangent = new Vector(-offset.getZ(), 0, offset.getX()).normalize().multiply(0.38);
                     Vector inward = offset.normalize().multiply(0.18);
-                    e.setVelocity(tangent.add(inward).setY(0.08));
+                    applyVelocity(p, e, tangent.add(inward).setY(0.08));
                     if (n % 4 == 0) hurt(p, e, power(tier, 1.25));
                 }
             }
@@ -567,11 +584,11 @@ final class Moves {
                 fx(c.clone().add(0, 1, 0), Particle.CLOUD, 22, 3.3, 1.0, 3.3, 0.015);
                 fx(c.clone().add(0, 1.2, 0), Particle.SPLASH, 10, 2.8, 0.8, 2.8, 0.02);
                 for (LivingEntity e : foes(p, c, 3.3)) {
-                    e.addPotionEffect(new org.bukkit.potion.PotionEffect(PotionEffectType.BLINDNESS, 30, 0, true, false));
-                    slow(e, 30, 0);
+                    applyEffect(p, e, PotionEffectType.BLINDNESS, 30, 0, true, false);
+                    slow(p, e, 30, 0);
                 }
                 for (Player ally : allies(p, c, 3.0))
-                    ally.addPotionEffect(new org.bukkit.potion.PotionEffect(PotionEffectType.INVISIBILITY, 30, 0, true, false));
+                    applyEffect(p, ally, PotionEffectType.INVISIBILITY, 30, 0, true, false);
             }
         }.runTaskTimer(magic, 0L, 4L);
         return true;
@@ -594,7 +611,7 @@ final class Moves {
                     fx(crest.clone().add(0, 1, 0), Particle.BUBBLE, 4, 0.15, 0.3, 0.15, 0.02);
                     for (LivingEntity e : foes(p, crest, 0.95)) {
                         if (swept.add(e.getUniqueId())) {
-                            e.setVelocity(forward.clone().multiply(1.2).setY(0.48));
+                            applyVelocity(p, e, forward.clone().multiply(1.2).setY(0.48));
                             hurt(p, e, power(tier, 7.0));
                         }
                     }
@@ -623,11 +640,11 @@ final class Moves {
                 Location at = rock.getLocation();
                 blockFx(at, Material.COBBLESTONE, 8, 0.25, 0.25, 0.25, 0.02);
                 fx(at, Particle.POOF, 3, radius, 0.2, radius, 0.02);
-                rock.setVelocity(dir.clone().multiply(0.85 + n * 0.012));
+                applyVelocity(p, rock, dir.clone().multiply(0.85 + n * 0.012));
                 for (LivingEntity e : foes(p, at, radius + 0.7)) {
                     if (struck.add(e.getUniqueId())) {
                         hurt(p, e, power(tier, 7.0));
-                        e.setVelocity(dir.clone().multiply(0.95).setY(0.32));
+                        applyVelocity(p, e, dir.clone().multiply(0.95).setY(0.32));
                     }
                 }
                 if (!at.clone().add(dir).getBlock().isPassable()) { rock.remove(); cancel(); }
@@ -655,7 +672,7 @@ final class Moves {
                 for (LivingEntity e : foes(p, crack, 1.25)) {
                     if (hit.add(e.getUniqueId())) {
                         hurt(p, e, power(tier, 6.0));
-                        e.setVelocity(new Vector(0, 0.62, 0));
+                        applyVelocity(p, e, new Vector(0, 0.62, 0));
                     }
                 }
             }
@@ -672,8 +689,8 @@ final class Moves {
             @Override public void run() {
                 if (!p.isOnline() || victim.isDead() || n++ >= 16) { cancel(); return; }
                 blockFx(victim.getLocation().add(0, 0.1, 0), Material.STONE, 10, 0.4, 0.08, 0.4, 0.02);
-                victim.setVelocity(new Vector(victim.getVelocity().getX() * 0.15, Math.min(0, victim.getVelocity().getY()), victim.getVelocity().getZ() * 0.15));
-                slow(victim, 8, 7);
+                applyVelocity(p, victim, new Vector(victim.getVelocity().getX() * 0.15, Math.min(0, victim.getVelocity().getY()), victim.getVelocity().getZ() * 0.15));
+                slow(p, victim, 8, 7);
                 if (n % 4 == 0) hurt(p, victim, power(tier, 1.5));
             }
         }.runTaskTimer(magic, 0L, 2L);
@@ -695,7 +712,7 @@ final class Moves {
                     double distance = e.getLocation().distance(fixed);
                     if (Math.abs(distance - radius) < 1.0) {
                         hurt(p, e, power(tier, 2.2));
-                        e.setVelocity(new Vector(0, 0.48, 0));
+                        applyVelocity(p, e, new Vector(0, 0.48, 0));
                     }
                 }
             }
@@ -706,8 +723,8 @@ final class Moves {
     private boolean earthPlateauStep(Player p, int tier) {
         Location base = safeGround(p.getLocation());
         if (base == null) return false;
-        p.addPotionEffect(new org.bukkit.potion.PotionEffect(PotionEffectType.RESISTANCE, 60, 1, true, false));
-        p.setVelocity(new Vector(0, 1.35 + tier * 0.03, 0));
+        applyEffect(p, p, PotionEffectType.RESISTANCE, 60, 1, true, false);
+        applyVelocity(p, p, new Vector(0, 1.35 + tier * 0.03, 0));
         sound(base, Sound.BLOCK_STONE_BREAK, 0.55f);
         new BukkitRunnable() {
             int n = 0;
@@ -721,7 +738,7 @@ final class Moves {
                     blockRing(p.getLocation(), 3.4, Material.STONE, 38);
                     for (LivingEntity e : foes(p, p.getLocation(), 4.0)) {
                         hurt(p, e, power(tier, 6.0));
-                        e.setVelocity(new Vector(0, 0.8, 0));
+                        applyVelocity(p, e, new Vector(0, 0.8, 0));
                     }
                     sound(p.getLocation(), Sound.ENTITY_GENERIC_EXPLODE, 0.65f);
                     cancel();
@@ -745,7 +762,7 @@ final class Moves {
                 FallingBlock debris = world.spawnFallingBlock(drop, Material.COBBLESTONE.createBlockData());
                 debris.setDropItem(false);
                 debris.setHurtEntities(false);
-                debris.setVelocity(new Vector(0, -0.8, 0));
+                applyVelocity(p, debris, new Vector(0, -0.8, 0));
                 new BukkitRunnable() {
                     int wait = 0;
                     @Override public void run() {
@@ -771,10 +788,10 @@ final class Moves {
                 if (!p.isOnline() || n++ >= 8) { cancel(); return; }
                 for (LivingEntity e : foes(p, center, 7.0)) {
                     Vector toCenter = center.toVector().subtract(e.getLocation().toVector());
-                    if (n <= 5) e.setVelocity(toCenter.normalize().multiply(0.72).setY(0.12));
+                    if (n <= 5) applyVelocity(p, e, toCenter.normalize().multiply(0.72).setY(0.12));
                     else {
                         Vector away = e.getLocation().toVector().subtract(center.toVector()).normalize();
-                        e.setVelocity(away.multiply(1.25).setY(0.5));
+                        applyVelocity(p, e, away.multiply(1.25).setY(0.5));
                         hurt(p, e, power(tier, 2.4));
                     }
                 }
@@ -787,6 +804,10 @@ final class Moves {
 
     // ================================================================ WIND
 
+    private boolean windFlight(Player p, int tier) {
+        return pm.toggleFlight(p, Element.WIND);
+    }
+
     private boolean windPressureShear(Player p, int tier) {
         Vector f = pm.dir(p);
         Vector right = new Vector(-f.getZ(), 0, f.getX()).normalize();
@@ -797,7 +818,7 @@ final class Moves {
                 fx(point, Particle.SWEEP_ATTACK, 1, 0.12, 0.12, 0.12, 0);
                 fx(point, Particle.CLOUD, 3, 0.1, 0.1, 0.1, 0.01);
                 for (LivingEntity e : foes(p, point, 0.8)) {
-                    if (hit.add(e.getUniqueId())) { hurt(p, e, power(tier, 5.0)); e.setVelocity(f.clone().multiply(0.8).setY(0.18)); }
+                    if (hit.add(e.getUniqueId())) { hurt(p, e, power(tier, 5.0)); applyVelocity(p, e, f.clone().multiply(0.8).setY(0.18)); }
                 }
             }
         }
@@ -810,7 +831,7 @@ final class Moves {
         if (dir.lengthSquared() < 0.01) dir = new Vector(0, 0, 1);
         final Vector travelDirection = dir.clone();
         Vector launch = travelDirection.clone().multiply(1.45 + tier * 0.025).setY(0.12);
-        p.setVelocity(launch);
+        applyVelocity(p, p, launch);
         Set<UUID> struck = new HashSet<>();
         sound(p.getLocation(), Sound.ENTITY_ENDER_DRAGON_FLAP, 1.45f);
         new BukkitRunnable() {
@@ -821,20 +842,20 @@ final class Moves {
                 fx(feet, Particle.CLOUD, 14, 0.55, 0.12, 0.55, 0.02);
                 fx(feet, Particle.SWEEP_ATTACK, 2, 0.35, 0.05, 0.35, 0);
                 for (LivingEntity e : foes(p, feet, 1.3)) {
-                    slow(e, 18, 1);
+                    slow(p, e, 18, 1);
                     if (struck.add(e.getUniqueId())) hurt(p, e, power(tier, 3.5));
                 }
-                p.setVelocity(travelDirection.clone().multiply(1.15).setY(p.isOnGround() ? 0.1 : p.getVelocity().getY()));
+                applyVelocity(p, p, travelDirection.clone().multiply(1.15).setY(p.isOnGround() ? 0.1 : p.getVelocity().getY()));
             }
         }.runTaskTimer(magic, 0L, 1L);
         return true;
     }
 
     private boolean windFeatherFall(Player p, int tier) {
-        p.addPotionEffect(new org.bukkit.potion.PotionEffect(PotionEffectType.SLOW_FALLING, 220, 0, true, false));
-        p.addPotionEffect(new org.bukkit.potion.PotionEffect(PotionEffectType.JUMP_BOOST, 100, 1, true, false));
+        applyEffect(p, p, PotionEffectType.SLOW_FALLING, 220, 0, true, false);
+        applyEffect(p, p, PotionEffectType.JUMP_BOOST, 100, 1, true, false);
         for (Player ally : allies(p, p.getLocation(), 6.0)) {
-            ally.addPotionEffect(new org.bukkit.potion.PotionEffect(PotionEffectType.SLOW_FALLING, 220, 0, true, false));
+            applyEffect(p, ally, PotionEffectType.SLOW_FALLING, 220, 0, true, false);
             fx(ally.getLocation().add(0, 1, 0), Particle.CLOUD, 18, 0.5, 0.6, 0.5, 0.02);
         }
         sound(p.getLocation(), Sound.ITEM_ELYTRA_FLYING, 0.9f);
@@ -851,11 +872,11 @@ final class Moves {
                 if (!p.isOnline() || victim.isDead() || n++ >= 14) { cancel(); return; }
                 double a = n * 0.8;
                 Vector orbit = new Vector(Math.cos(a) * 0.55, 0.38, Math.sin(a) * 0.55);
-                victim.setVelocity(orbit);
+                applyVelocity(p, victim, orbit);
                 fx(victim.getLocation().add(0, 0.7, 0), Particle.SMALL_GUST, 3, 0.25, 0.35, 0.25, 0.02);
                 fx(victim.getLocation(), Particle.CLOUD, 8, 0.4, 0.5, 0.4, 0.02);
                 if (n % 4 == 0) hurt(p, victim, power(tier, 1.2));
-                if (n == 14) { victim.setVelocity(new Vector(0, -0.9, 0)); hurt(p, victim, power(tier, 3.0)); }
+                if (n == 14) { applyVelocity(p, victim, new Vector(0, -0.9, 0)); hurt(p, victim, power(tier, 3.0)); }
             }
         }.runTaskTimer(magic, 0L, 2L);
         sound(center, Sound.ENTITY_PHANTOM_FLAP, 0.75f);
@@ -879,7 +900,7 @@ final class Moves {
                     double along = offset.dot(dir);
                     double lateral = offset.clone().subtract(dir.clone().multiply(along)).length();
                     if (along >= 0 && along <= 15 && lateral <= 1.15) {
-                        ally.addPotionEffect(new org.bukkit.potion.PotionEffect(PotionEffectType.SPEED, 12, 2, true, false));
+                        applyEffect(p, ally, PotionEffectType.SPEED, 12, 2, true, false);
                         fx(ally.getLocation(), Particle.CLOUD, 3, 0.25, 0.1, 0.25, 0.01);
                     }
                 }
@@ -893,7 +914,7 @@ final class Moves {
         sound(c, Sound.ENTITY_BREEZE_DEATH, 0.75f);
         for (LivingEntity e : foes(p, c, 6.5)) {
             Vector away = e.getLocation().toVector().subtract(c.toVector()).normalize();
-            e.setVelocity(away.multiply(1.4).setY(0.45));
+            applyVelocity(p, e, away.multiply(1.4).setY(0.45));
             hurt(p, e, power(tier, 4.0));
         }
         new BukkitRunnable() {
@@ -917,7 +938,7 @@ final class Moves {
                 if (!p.isOnline() || n++ >= 9) { cancel(); return; }
                 for (LivingEntity e : locked) {
                     if (e.isDead() || !e.isValid()) continue;
-                    e.setVelocity(new Vector(e.getVelocity().getX() * 0.3, n < 7 ? 0.8 : -1.05, e.getVelocity().getZ() * 0.3));
+                    applyVelocity(p, e, new Vector(e.getVelocity().getX() * 0.3, n < 7 ? 0.8 : -1.05, e.getVelocity().getZ() * 0.3));
                     fx(e.getLocation(), Particle.CLOUD, 12, 0.35, 0.5, 0.35, 0.03);
                     if (n == 9) hurt(p, e, power(tier, 8.0));
                 }
@@ -951,7 +972,7 @@ final class Moves {
                 for (LivingEntity e : foes(p, at, radius)) {
                     e.getWorld().strikeLightningEffect(e.getLocation());
                     hurt(p, e, power(tier, 3.0 + distance * 0.22));
-                    slow(e, 24, 1);
+                    slow(p, e, 24, 1);
                 }
                 sound(at, Sound.ENTITY_LIGHTNING_BOLT_THUNDER, 1.2f);
             }
@@ -968,13 +989,13 @@ final class Moves {
             @Override public void run() {
                 if (!p.isOnline() || victim.isDead() || n++ >= 12) { cancel(); return; }
                 Vector velocity = victim.getVelocity();
-                victim.setVelocity(velocity.multiply(0.2));
+                applyVelocity(p, victim, velocity.multiply(0.2));
                 fx(victim.getLocation().add(0, 1, 0), Particle.ELECTRIC_SPARK, 10, 0.35, 0.45, 0.35, 0.06);
                 fx(p.getLocation().add(0, 1, 0), Particle.ELECTRIC_SPARK, 4, 0.2, 0.25, 0.2, 0.03);
                 if (n % 3 == 0) hurt(p, victim, power(tier, 1.1));
             }
         }.runTaskTimer(magic, 0L, 2L);
-        p.addPotionEffect(new org.bukkit.potion.PotionEffect(PotionEffectType.SPEED, 100, 1, true, false));
+        applyEffect(p, p, PotionEffectType.SPEED, 100, 1, true, false);
         return true;
     }
 
@@ -1013,7 +1034,7 @@ final class Moves {
         fx(safe, Particle.FLASH, 1, 0, 0, 0, 0);
         fx(safe, Particle.ELECTRIC_SPARK, 30, 0.5, 0.8, 0.5, 0.08);
         hurt(p, victim, power(tier, 5.0));
-        slow(victim, 35, 2);
+        slow(p, victim, 35, 2);
         sound(safe, Sound.ENTITY_LIGHTNING_BOLT_IMPACT, 1.25f);
         return true;
     }
@@ -1029,10 +1050,10 @@ final class Moves {
                 ring(p.getLocation(), 1.0 + n * 0.75, Particle.ELECTRIC_SPARK, 32);
                 if (n == 8) {
                     for (LivingEntity e : foes(p, p.getLocation(), 7.0)) {
-                        e.addPotionEffect(new org.bukkit.potion.PotionEffect(PotionEffectType.NAUSEA, 65, 0, true, false));
-                        slow(e, 45, 1);
+                        applyEffect(p, e, PotionEffectType.NAUSEA, 65, 0, true, false);
+                        slow(p, e, 45, 1);
                         hurt(p, e, power(tier, 6.0));
-                        e.setVelocity(new Vector(0, 0.45, 0));
+                        applyVelocity(p, e, new Vector(0, 0.45, 0));
                     }
                     sound(p.getLocation(), Sound.ENTITY_WARDEN_SONIC_BOOM, 0.7f);
                 }
@@ -1042,8 +1063,8 @@ final class Moves {
     }
 
     private boolean lightningOvercharge(Player p, int tier) {
-        p.addPotionEffect(new org.bukkit.potion.PotionEffect(PotionEffectType.HASTE, 160, 1, true, false));
-        p.addPotionEffect(new org.bukkit.potion.PotionEffect(PotionEffectType.SPEED, 160, 1, true, false));
+        applyEffect(p, p, PotionEffectType.HASTE, 160, 1, true, false);
+        applyEffect(p, p, PotionEffectType.SPEED, 160, 1, true, false);
         sound(p.getLocation(), Sound.BLOCK_BEACON_ACTIVATE, 1.6f);
         new BukkitRunnable() {
             int n = 0;
@@ -1074,7 +1095,7 @@ final class Moves {
                     fx(pillar, Particle.ELECTRIC_SPARK, 10, 0.08, 1.3, 0.08, 0.08);
                 }
                 for (LivingEntity e : foes(p, center, 4.0)) {
-                    slow(e, 12, 4);
+                    slow(p, e, 12, 4);
                     if (n % 2 == 0) {
                         e.getWorld().strikeLightningEffect(e.getLocation());
                         hurt(p, e, power(tier, 2.0));
@@ -1123,7 +1144,7 @@ final class Moves {
         victim.teleport(targetSpot);
         p.teleport(playerSpot);
         hurt(p, victim, power(tier, 4.0));
-        slow(victim, 35, 1);
+        slow(p, victim, 35, 1);
         sound(playerSpot, Sound.ENTITY_ENDERMAN_TELEPORT, 0.6f);
         return true;
     }
@@ -1137,8 +1158,8 @@ final class Moves {
             int n = 0;
             @Override public void run() {
                 if (!p.isOnline() || victim.isDead() || n++ >= 12) { cancel(); return; }
-                victim.setVelocity(away.clone().multiply(0.42).setY(0.08));
-                victim.addPotionEffect(new org.bukkit.potion.PotionEffect(PotionEffectType.BLINDNESS, 14, 0, true, false));
+                applyVelocity(p, victim, away.clone().multiply(0.42).setY(0.08));
+                applyEffect(p, victim, PotionEffectType.BLINDNESS, 14, 0, true, false);
                 fx(victim.getEyeLocation(), Particle.SOUL, 3, 0.1, 0.1, 0.1, 0.01);
                 if (n % 4 == 0) hurt(p, victim, power(tier, 1.25));
             }
@@ -1177,7 +1198,7 @@ final class Moves {
         p.teleport(behind);
         fx(behind, Particle.SQUID_INK, 25, 0.35, 0.7, 0.35, 0.05);
         hurt(p, victim, power(tier, 7.0));
-        slow(victim, 24, 1);
+        slow(p, victim, 24, 1);
         sound(behind, Sound.ENTITY_PLAYER_ATTACK_CRIT, 0.6f);
         return true;
     }
@@ -1208,8 +1229,8 @@ final class Moves {
     private boolean shadowEclipseHunt(Player p, int tier) {
         LivingEntity victim = target(p, 22);
         if (victim == null) { status(p, "§cلا يوجد هدف لمطاردة الكسوف"); return false; }
-        p.addPotionEffect(new org.bukkit.potion.PotionEffect(PotionEffectType.INVISIBILITY, 65, 0, true, false));
-        p.addPotionEffect(new org.bukkit.potion.PotionEffect(PotionEffectType.SPEED, 65, 2, true, false));
+        applyEffect(p, p, PotionEffectType.INVISIBILITY, 65, 0, true, false);
+        applyEffect(p, p, PotionEffectType.SPEED, 65, 2, true, false);
         new BukkitRunnable() {
             int n = 0;
             @Override public void run() {
@@ -1232,7 +1253,7 @@ final class Moves {
 
     private boolean iceSkate(Player p, int tier) {
         Vector dir = pm.dir(p).setY(0).normalize();
-        p.setVelocity(dir.multiply(1.3 + tier * 0.02).setY(0.1));
+        applyVelocity(p, p, dir.multiply(1.3 + tier * 0.02).setY(0.1));
         Set<UUID> hit = new HashSet<>();
         sound(p.getLocation(), Sound.BLOCK_GLASS_STEP, 0.7f);
         new BukkitRunnable() {
@@ -1243,10 +1264,10 @@ final class Moves {
                 fx(feet, Particle.SNOWFLAKE, 18, 0.65, 0.15, 0.65, 0.02);
                 fx(feet, Particle.CLOUD, 5, 0.3, 0.05, 0.3, 0.01);
                 for (LivingEntity e : foes(p, feet, 1.25)) {
-                    slow(e, 30, 2);
+                    slow(p, e, 30, 2);
                     if (hit.add(e.getUniqueId())) hurt(p, e, power(tier, 4.0));
                 }
-                p.setVelocity(dir.clone().multiply(1.0).setY(p.isOnGround() ? 0.06 : p.getVelocity().getY()));
+                applyVelocity(p, p, dir.clone().multiply(1.0).setY(p.isOnGround() ? 0.06 : p.getVelocity().getY()));
             }
         }.runTaskTimer(magic, 0L, 1L);
         return true;
@@ -1260,8 +1281,8 @@ final class Moves {
             int stacks = 0;
             @Override public void run() {
                 if (!p.isOnline() || victim.isDead() || stacks++ >= 5) { cancel(); return; }
-                freeze(victim, 35 + stacks * 10);
-                slow(victim, 35, stacks);
+                freeze(p, victim, 35 + stacks * 10);
+                slow(p, victim, 35, stacks);
                 fx(victim.getLocation().add(0, 1, 0), Particle.SNOWFLAKE, 18 + stacks * 3, 0.35, 0.5, 0.35, 0.02);
                 if (stacks == 5) {
                     hurt(p, victim, power(tier, 7.0));
@@ -1288,9 +1309,9 @@ final class Moves {
                     fx(edge, Particle.SNOWFLAKE, 5, 0.08, 0.18, 0.08, 0.01);
                     fx(edge, Particle.END_ROD, 1, 0.02, 0.03, 0.02, 0);
                 }
-                victim.setVelocity(new Vector(0, Math.min(0, victim.getVelocity().getY()), 0));
-                slow(victim, 10, 6);
-                freeze(victim, 80 + n * 3);
+                applyVelocity(p, victim, new Vector(0, Math.min(0, victim.getVelocity().getY()), 0));
+                slow(p, victim, 10, 6);
+                freeze(p, victim, 80 + n * 3);
                 if (n == 18) hurt(p, victim, power(tier, 6.5));
             }
         }.runTaskTimer(magic, 0L, 2L);
@@ -1310,7 +1331,7 @@ final class Moves {
                     fx(strike.clone().add(0, 5, 0), Particle.SNOWFLAKE, 12, 0.2, 0.1, 0.2, 0.02);
                     blockFx(strike, Material.PACKED_ICE, 18, 0.24, 0.55, 0.24, 0.04);
                     for (LivingEntity e : foes(p, strike, 1.2)) {
-                        hurt(p, e, power(tier, 2.2)); freeze(e, 40);
+                        hurt(p, e, power(tier, 2.2)); freeze(p, e, 40);
                     }
                 }
             }
@@ -1328,8 +1349,8 @@ final class Moves {
                 fx(center.clone().add(0, 2, 0), Particle.WHITE_ASH, 35, 4.0, 1.6, 4.0, 0.015);
                 fx(center, Particle.SNOWFLAKE, 35, 4.0, 1.2, 4.0, 0.02);
                 for (LivingEntity e : foes(p, center, 4.2)) {
-                    e.addPotionEffect(new org.bukkit.potion.PotionEffect(PotionEffectType.BLINDNESS, 18, 0, true, false));
-                    slow(e, 22, 1);
+                    applyEffect(p, e, PotionEffectType.BLINDNESS, 18, 0, true, false);
+                    slow(p, e, 22, 1);
                     if (n % 6 == 0) hurt(p, e, power(tier, 1.3));
                 }
             }
@@ -1339,8 +1360,8 @@ final class Moves {
 
     private boolean iceGlacierSlide(Player p, int tier) {
         Vector dir = pm.dir(p).setY(0).normalize();
-        p.setVelocity(dir.clone().multiply(1.0).setY(0.35));
-        p.addPotionEffect(new org.bukkit.potion.PotionEffect(PotionEffectType.SLOW_FALLING, 70, 0, true, false));
+        applyVelocity(p, p, dir.clone().multiply(1.0).setY(0.35));
+        applyEffect(p, p, PotionEffectType.SLOW_FALLING, 70, 0, true, false);
         Set<UUID> hit = new HashSet<>();
         new BukkitRunnable() {
             int n = 0;
@@ -1352,10 +1373,10 @@ final class Moves {
                 for (LivingEntity e : foes(p, at, 1.8)) {
                     if (hit.add(e.getUniqueId())) {
                         hurt(p, e, power(tier, 5.0));
-                        e.setVelocity(dir.clone().multiply(0.6).setY(0.45));
+                        applyVelocity(p, e, dir.clone().multiply(0.6).setY(0.45));
                     }
                 }
-                p.setVelocity(dir.clone().multiply(0.88).setY(p.getVelocity().getY() * 0.65));
+                applyVelocity(p, p, dir.clone().multiply(0.88).setY(p.getVelocity().getY() * 0.65));
             }
         }.runTaskTimer(magic, 0L, 1L);
         return true;
@@ -1373,8 +1394,8 @@ final class Moves {
                 fx(center.clone().add(0, 1.5, 0), Particle.END_ROD, 8 + charge, 0.3, 0.4, 0.3, 0.01);
                 if (charge == 12) {
                     for (LivingEntity e : foes(p, center, 5.5)) {
-                        freeze(e, 180 + tier * 6);
-                        slow(e, 100, 4);
+                        freeze(p, e, 180 + tier * 6);
+                        slow(p, e, 100, 4);
                         hurt(p, e, power(tier, 8.0));
                     }
                     fx(center, Particle.SNOWFLAKE, 120, 3.5, 1.5, 3.5, 0.05);
@@ -1396,13 +1417,13 @@ final class Moves {
                 ring(p.getLocation(), 2.0 + n * 0.28, Particle.CRIT, 36);
                 for (LivingEntity e : foes(p, p.getLocation(), 6.0)) {
                     Vector pull = p.getLocation().toVector().subtract(e.getLocation().toVector()).normalize();
-                    e.setVelocity(pull.multiply(0.56).setY(0.12));
+                    applyVelocity(p, e, pull.multiply(0.56).setY(0.12));
                     if (n % 3 == 0) hurt(p, e, power(tier, 1.0));
                 }
                 for (Entity e : p.getWorld().getNearbyEntities(p.getLocation(), 5, 5, 5)) {
                     if (!(e instanceof LivingEntity) && !(e instanceof Player)) {
                         Vector pull = p.getLocation().toVector().subtract(e.getLocation().toVector()).normalize().multiply(0.35);
-                        e.setVelocity(pull);
+                        applyVelocity(p, e, pull);
                     }
                 }
             }
@@ -1464,13 +1485,13 @@ final class Moves {
         LivingEntity victim = target(p, 20);
         if (victim != null) {
             Vector pull = p.getLocation().toVector().subtract(victim.getLocation().toVector()).normalize().multiply(1.15).setY(0.22);
-            victim.setVelocity(pull);
+            applyVelocity(p, victim, pull);
             hurt(p, victim, power(tier, 4.0));
             fx(victim.getLocation(), Particle.CRIT, 24, 0.35, 0.4, 0.35, 0.08);
         } else {
             Location anchor = aim(p, 16);
             Vector pull = anchor.toVector().subtract(p.getLocation().toVector()).normalize().multiply(1.45).setY(0.28);
-            p.setVelocity(pull);
+            applyVelocity(p, p, pull);
             fx(anchor, Particle.CRIT, 28, 0.25, 0.35, 0.25, 0.08);
         }
         sound(p.getLocation(), Sound.BLOCK_CHAIN_HIT, 0.8f);
@@ -1482,7 +1503,7 @@ final class Moves {
         sound(c, Sound.BLOCK_BEACON_DEACTIVATE, 0.8f);
         for (LivingEntity e : foes(p, c, 6.5)) {
             Vector away = e.getLocation().toVector().subtract(c.toVector()).normalize();
-            e.setVelocity(away.multiply(1.55).setY(0.35));
+            applyVelocity(p, e, away.multiply(1.55).setY(0.35));
             hurt(p, e, power(tier, 4.5));
         }
         new BukkitRunnable() {
@@ -1497,8 +1518,8 @@ final class Moves {
     }
 
     private boolean metalLivingForge(Player p, int tier) {
-        p.addPotionEffect(new org.bukkit.potion.PotionEffect(PotionEffectType.RESISTANCE, 140, 1, true, false));
-        p.addPotionEffect(new org.bukkit.potion.PotionEffect(PotionEffectType.ABSORPTION, 140, 1, true, false));
+        applyEffect(p, p, PotionEffectType.RESISTANCE, 140, 1, true, false);
+        applyEffect(p, p, PotionEffectType.ABSORPTION, 140, 1, true, false);
         sound(p.getLocation(), Sound.BLOCK_ANVIL_USE, 0.8f);
         new BukkitRunnable() {
             int n = 0;
@@ -1520,21 +1541,21 @@ final class Moves {
         Vector dir = pm.dir(p).setY(0).normalize();
         Set<UUID> struck = new HashSet<>();
         sound(p.getLocation(), Sound.ENTITY_IRON_GOLEM_ATTACK, 0.6f);
-        p.addPotionEffect(new org.bukkit.potion.PotionEffect(PotionEffectType.RESISTANCE, 35, 2, true, false));
+        applyEffect(p, p, PotionEffectType.RESISTANCE, 35, 2, true, false);
         new BukkitRunnable() {
             int n = 0;
             @Override public void run() {
                 if (!p.isOnline() || p.isDead() || n++ >= 12) { cancel(); return; }
-                p.setVelocity(dir.clone().multiply(1.3).setY(0.08));
+                applyVelocity(p, p, dir.clone().multiply(1.3).setY(0.08));
                 Location c = p.getLocation().add(0, 1, 0);
                 fx(c, Particle.CRIT, 20, 0.55, 0.6, 0.55, 0.09);
                 for (LivingEntity e : foes(p, c, 1.8)) {
                     if (struck.add(e.getUniqueId())) {
                         hurt(p, e, power(tier, 8.0));
-                        e.setVelocity(dir.clone().multiply(1.4).setY(0.48));
+                        applyVelocity(p, e, dir.clone().multiply(1.4).setY(0.48));
                     }
                 }
-                if (!p.getLocation().add(dir).getBlock().isPassable()) { p.setVelocity(new Vector(0, 0.2, 0)); cancel(); }
+                if (!p.getLocation().add(dir).getBlock().isPassable()) { applyVelocity(p, p, new Vector(0, 0.2, 0)); cancel(); }
             }
         }.runTaskTimer(magic, 0L, 1L);
         return true;
@@ -1563,9 +1584,9 @@ final class Moves {
                     if (!(entity instanceof LivingEntity living) || living.isDead() || !living.isOnGround()) continue;
                     if (Math.abs(living.getLocation().getY() - fixed.getY()) > 1.25) continue;
                     Vector launch = living.getVelocity().clone().setY(1.05 + tier * 0.035);
-                    living.setVelocity(launch);
+                    applyVelocity(p, living, launch);
                     if (living instanceof Player player && sameSchool(p, player)) {
-                        player.addPotionEffect(new org.bukkit.potion.PotionEffect(PotionEffectType.SLOW_FALLING, 80, 0, true, false));
+                        applyEffect(p, player, PotionEffectType.SLOW_FALLING, 80, 0, true, false);
                     }
                     fx(living.getLocation(), Particle.CHERRY_LEAVES, 35, 0.7, 0.25, 0.7, 0.04);
                     sound(living.getLocation(), Sound.BLOCK_SLIME_BLOCK_FALL, 1.25f);
@@ -1587,8 +1608,8 @@ final class Moves {
                 fx(center.clone().add(0, 1.2, 0), Particle.COMPOSTER, 32, 2.8, 1.0, 2.8, 0.025);
                 fx(center.clone().add(0, 0.3, 0), Particle.CHERRY_LEAVES, 14, 2.5, 0.5, 2.5, 0.02);
                 for (LivingEntity e : foes(p, center, 3.5)) {
-                    slow(e, 25, 1);
-                    e.addPotionEffect(new org.bukkit.potion.PotionEffect(PotionEffectType.NAUSEA, 30, 0, true, false));
+                    slow(p, e, 25, 1);
+                    applyEffect(p, e, PotionEffectType.NAUSEA, 30, 0, true, false);
                     if (n % 5 == 0) hurt(p, e, power(tier, 1.4));
                 }
             }
@@ -1599,7 +1620,7 @@ final class Moves {
     private boolean natureLifeBond(Player p, int tier) {
         Player partner = allies(p, p.getLocation(), 12).stream().filter(x -> !x.equals(p))
                 .min(Comparator.comparingDouble(x -> x.getLocation().distanceSquared(p.getLocation()))).orElse(null);
-        if (partner == null) { heal(p, 4 + tier); p.addPotionEffect(new org.bukkit.potion.PotionEffect(PotionEffectType.REGENERATION, 100, 1, true, false)); return true; }
+        if (partner == null) { heal(p, 4 + tier); applyEffect(p, p, PotionEffectType.REGENERATION, 100, 1, true, false); return true; }
         sound(p.getLocation(), Sound.ITEM_HONEY_BOTTLE_DRINK, 0.8f);
         new BukkitRunnable() {
             int n = 0;
@@ -1610,7 +1631,7 @@ final class Moves {
                 Vector d = b.toVector().subtract(a.toVector());
                 for (double s = 0; s < 1; s += 0.12) fx(a.clone().add(d.clone().multiply(s)), Particle.HAPPY_VILLAGER, 2, 0.03, 0.03, 0.03, 0.01);
                 heal(p, 0.7 + tier * 0.1);
-                heal(partner, 0.7 + tier * 0.1);
+                heal(p, partner, 0.7 + tier * 0.1);
             }
         }.runTaskTimer(magic, 0L, 5L);
         return true;
@@ -1628,8 +1649,8 @@ final class Moves {
             fx(vine, Particle.HAPPY_VILLAGER, 1, 0.02, 0.02, 0.02, 0);
         }
         Vector yank = p.getLocation().toVector().subtract(victim.getLocation().toVector()).normalize().multiply(0.9).setY(0.22);
-        victim.setVelocity(yank);
-        slow(victim, 25, 1);
+        applyVelocity(p, victim, yank);
+        slow(p, victim, 25, 1);
         hurt(p, victim, power(tier, 5.0));
         sound(end, Sound.BLOCK_VINE_PLACE, 0.75f);
         return true;
@@ -1652,7 +1673,7 @@ final class Moves {
                 if (prey != null && n % 2 == 0) {
                     fx(prey.getLocation().add(0, 0.8, 0), Particle.COMPOSTER, 16, 0.25, 0.4, 0.25, 0.02);
                     hurt(p, prey, power(tier, 2.8));
-                    slow(prey, 24, 1);
+                    slow(p, prey, 24, 1);
                 }
             }
         }.runTaskTimer(magic, 0L, 5L);
@@ -1660,7 +1681,7 @@ final class Moves {
     }
 
     private boolean natureWildGrowth(Player p, int tier) {
-        p.addPotionEffect(new org.bukkit.potion.PotionEffect(PotionEffectType.SPEED, 180, 1, true, false));
+        applyEffect(p, p, PotionEffectType.SPEED, 180, 1, true, false);
         sound(p.getLocation(), Sound.ITEM_BONE_MEAL_USE, 1.3f);
         new BukkitRunnable() {
             int n = 0;
@@ -1670,9 +1691,9 @@ final class Moves {
                 Location now = p.getLocation();
                 if (now.distanceSquared(previous) > 0.3) {
                     fx(previous, Particle.CHERRY_LEAVES, 12, 0.45, 0.15, 0.45, 0.02);
-                    for (Player ally : allies(p, previous, 2.2)) heal(ally, 0.35 + tier * 0.04);
+                    for (Player ally : allies(p, previous, 2.2)) heal(p, ally, 0.35 + tier * 0.04);
                     for (LivingEntity e : foes(p, previous, 1.4)) {
-                        e.addPotionEffect(new org.bukkit.potion.PotionEffect(PotionEffectType.POISON, 28, 0, true, false));
+                        applyEffect(p, e, PotionEffectType.POISON, 28, 0, true, false);
                     }
                     previous = now.clone();
                 }
@@ -1727,7 +1748,7 @@ final class Moves {
     private boolean lightSunBrand(Player p, int tier) {
         LivingEntity victim = target(p, 17);
         if (victim == null) { status(p, "§cلا يوجد هدف لوسم الشمس"); return false; }
-        victim.addPotionEffect(new org.bukkit.potion.PotionEffect(PotionEffectType.GLOWING, 90, 0, true, false));
+        applyEffect(p, victim, PotionEffectType.GLOWING, 90, 0, true, false);
         sound(victim.getLocation(), Sound.BLOCK_BEACON_POWER_SELECT, 1.8f);
         new BukkitRunnable() {
             int n = 0;
@@ -1756,8 +1777,8 @@ final class Moves {
             ally.removePotionEffect(PotionEffectType.SLOWNESS);
             ally.removePotionEffect(PotionEffectType.WEAKNESS);
             ally.removePotionEffect(PotionEffectType.NAUSEA);
-            heal(ally, 2.0 + tier * 0.4);
-            ally.addPotionEffect(new org.bukkit.potion.PotionEffect(PotionEffectType.REGENERATION, 60, 0, true, false));
+            heal(p, ally, 2.0 + tier * 0.4);
+            applyEffect(p, ally, PotionEffectType.REGENERATION, 60, 0, true, false);
             fx(ally.getLocation().add(0, 1, 0), Particle.END_ROD, 18, 0.45, 0.7, 0.45, 0.03);
         }
         ring(c, 2.0, Particle.END_ROD, 40);
@@ -1786,8 +1807,8 @@ final class Moves {
         int light = localLight(p.getLocation());
         int amplifier = light >= 13 ? 2 : light >= 8 ? 1 : 0;
         int duration = 100 + light * 4;
-        p.addPotionEffect(new org.bukkit.potion.PotionEffect(PotionEffectType.STRENGTH, duration, amplifier, true, false));
-        p.addPotionEffect(new org.bukkit.potion.PotionEffect(PotionEffectType.GLOWING, duration, 0, true, false));
+        applyEffect(p, p, PotionEffectType.STRENGTH, duration, amplifier, true, false);
+        applyEffect(p, p, PotionEffectType.GLOWING, duration, 0, true, false);
         sound(p.getLocation(), Sound.BLOCK_BEACON_POWER_SELECT, 1.2f);
         new BukkitRunnable() {
             int n = 0;
@@ -1812,9 +1833,9 @@ final class Moves {
                 if (!p.isOnline() || n++ >= 10) { cancel(); return; }
                 ring(p.getLocation(), 1.4 + n * 0.5, Particle.END_ROD, 48);
                 for (LivingEntity e : foes(p, p.getLocation(), 7.0)) {
-                    e.addPotionEffect(new org.bukkit.potion.PotionEffect(PotionEffectType.GLOWING, 35, 0, true, false));
+                    applyEffect(p, e, PotionEffectType.GLOWING, 35, 0, true, false);
                     if (localLight(e.getLocation()) <= 4) {
-                        slow(e, 20, 1);
+                        slow(p, e, 20, 1);
                         if (n % 3 == 0) hurt(p, e, power(tier, 1.6));
                     }
                 }
@@ -1864,7 +1885,7 @@ final class Moves {
                 if (now.distanceSquared(last) > 0.16) {
                     ring(now, 1.0, Particle.NOTE, 20);
                     hurt(p, victim, power(tier, 2.2));
-                    victim.setVelocity(victim.getVelocity().multiply(0.35));
+                    applyVelocity(p, victim, victim.getVelocity().multiply(0.35));
                     last = now.clone();
                 }
                 fx(victim.getLocation().add(0, 1, 0), Particle.NOTE, 2, 0.1, 0.15, 0.1, 0.01);
@@ -1883,8 +1904,8 @@ final class Moves {
                 ring(center, 3.4, Particle.SONIC_BOOM, 12);
                 fx(center, Particle.CLOUD, 18, 3.0, 1.1, 3.0, 0.01);
                 for (LivingEntity e : foes(p, center, 3.8)) {
-                    slow(e, 24, 2);
-                    e.addPotionEffect(new org.bukkit.potion.PotionEffect(PotionEffectType.WEAKNESS, 28, 1, true, false));
+                    slow(p, e, 24, 2);
+                    applyEffect(p, e, PotionEffectType.WEAKNESS, 28, 1, true, false);
                     if (n % 5 == 0) hurt(p, e, power(tier, 1.4));
                 }
             }
@@ -1896,7 +1917,7 @@ final class Moves {
         Location c = p.getLocation();
         sound(c, Sound.BLOCK_NOTE_BLOCK_CHIME, 0.65f);
         for (LivingEntity e : foes(p, c, 24)) {
-            e.addPotionEffect(new org.bukkit.potion.PotionEffect(PotionEffectType.GLOWING, 100, 0, true, false));
+            applyEffect(p, e, PotionEffectType.GLOWING, 100, 0, true, false);
             Vector d = e.getLocation().toVector().subtract(c.toVector());
             double dist = Math.sqrt(d.lengthSquared());
             Location marker = c.clone().add(d.normalize().multiply(Math.min(dist, 20)));
@@ -1941,7 +1962,7 @@ final class Moves {
                 sound(center, Sound.BLOCK_NOTE_BLOCK_BELL, pitch);
                 ring(center, 1.0 + n * 0.35, Particle.NOTE, 28);
                 for (LivingEntity e : foes(p, center, 4.0)) {
-                    e.setVelocity(new Vector(e.getVelocity().getX() * 0.4, 0.46 + n * 0.035, e.getVelocity().getZ() * 0.4));
+                    applyVelocity(p, e, new Vector(e.getVelocity().getX() * 0.4, 0.46 + n * 0.035, e.getVelocity().getZ() * 0.4));
                     if (n == 8) hurt(p, e, power(tier, 5.5));
                 }
             }
@@ -1958,7 +1979,7 @@ final class Moves {
             @Override public void run() {
                 if (!p.isOnline() || victim.isDead() || n++ >= 10) { cancel(); return; }
                 Vector v = victim.getVelocity();
-                victim.setVelocity(v.clone().multiply(-0.9).setY(Math.max(0.18, Math.abs(v.getY()) + 0.1)));
+                applyVelocity(p, victim, v.clone().multiply(-0.9).setY(Math.max(0.18, Math.abs(v.getY()) + 0.1)));
                 fx(victim.getLocation().add(0, 1, 0), Particle.SONIC_BOOM, 1, 0, 0, 0, 0);
                 if (n % 2 == 0) hurt(p, victim, power(tier, 1.1));
             }
@@ -1984,7 +2005,7 @@ final class Moves {
                         for (LivingEntity e : foes(p, center, r + 0.75)) {
                             if (Math.abs(e.getLocation().distance(center) - r) <= 0.85) {
                                 hurt(p, e, power(tier, 1.5 + index * 1.4));
-                                e.setVelocity(e.getLocation().toVector().subtract(center.toVector()).normalize().multiply(0.6 + index * 0.2).setY(0.2));
+                                applyVelocity(p, e, e.getLocation().toVector().subtract(center.toVector()).normalize().multiply(0.6 + index * 0.2).setY(0.2));
                             }
                         }
                     }
@@ -2028,8 +2049,8 @@ final class Moves {
     }
 
     private boolean crystalFacetHeart(Player p, int tier) {
-        p.addPotionEffect(new org.bukkit.potion.PotionEffect(PotionEffectType.ABSORPTION, 180, 2, true, false));
-        p.addPotionEffect(new org.bukkit.potion.PotionEffect(PotionEffectType.RESISTANCE, 90, 0, true, false));
+        applyEffect(p, p, PotionEffectType.ABSORPTION, 180, 2, true, false);
+        applyEffect(p, p, PotionEffectType.RESISTANCE, 90, 0, true, false);
         sound(p.getLocation(), Sound.BLOCK_AMETHYST_BLOCK_RESONATE, 0.75f);
         new BukkitRunnable() {
             int n = 0;
@@ -2081,8 +2102,8 @@ final class Moves {
                     Location shard = center.clone().add(Math.cos(a) * 1.5, height, Math.sin(a) * 1.5);
                     fx(shard, Particle.END_ROD, 5, 0.06, 0.2, 0.06, 0.01);
                 }
-                slow(victim, 10, 5);
-                victim.setVelocity(new Vector(0, Math.min(0, victim.getVelocity().getY()), 0));
+                slow(p, victim, 10, 5);
+                applyVelocity(p, victim, new Vector(0, Math.min(0, victim.getVelocity().getY()), 0));
                 if (n == 14) hurt(p, victim, power(tier, 7.0));
             }
         }.runTaskTimer(magic, 0L, 3L);
@@ -2105,7 +2126,7 @@ final class Moves {
                     fx(c, Particle.FLASH, 1, 0, 0, 0, 0);
                     fx(c, Particle.CRIT, 55, 0.8, 0.8, 0.8, 0.1);
                     hurt(p, victim, power(tier, 9.0));
-                    slow(victim, 50, 2);
+                    slow(p, victim, 50, 2);
                 }
             }
         }.runTaskTimer(magic, 0L, 5L);
@@ -2130,7 +2151,7 @@ final class Moves {
         }
         for (LivingEntity e : foes(p, old, 2.3)) {
             hurt(p, e, power(tier, 4.0));
-            slow(e, 25, 1);
+            slow(p, e, 25, 1);
         }
         sound(destination, Sound.BLOCK_AMETHYST_BLOCK_CHIME, 1.6f);
         return true;
@@ -2153,7 +2174,7 @@ final class Moves {
                 for (LivingEntity e : foes(p, center, radius + 0.9)) {
                     if (Math.abs(e.getLocation().distance(center) - radius) < 1.1) {
                         hurt(p, e, power(tier, 2.0));
-                        slow(e, 25, 1);
+                        slow(p, e, 25, 1);
                     }
                 }
             }

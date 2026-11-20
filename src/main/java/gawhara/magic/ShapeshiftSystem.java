@@ -221,7 +221,7 @@ final class ShapeshiftSystem implements Listener {
         }
 
         endForm(player, false);
-        int safeTier = Math.max(1, Math.min(5, tier));
+        int safeTier = Math.max(1, Math.min(6, tier));
         long duration = (15L + safeTier * 3L) * 1000L;
         activeForms.put(player.getUniqueId(), new ActiveForm(form, System.currentTimeMillis() + duration));
         applyDisguise(player, form);

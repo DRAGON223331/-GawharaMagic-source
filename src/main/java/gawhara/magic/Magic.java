@@ -81,9 +81,6 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
     YamlConfiguration data;
     boolean dirty = false;
     boolean inAbility = false;
-    final Map<UUID, Long> cd = new HashMap<>();
-    // Cooldown مستقل للحركة الأساسية باليد الفارغة حتى لا تتعارض مع Cooldown الأسلحة.
-    final Map<UUID, Long> unarmedCd = new HashMap<>();
     AdvancedSystems advanced;
     PowerMode power;
     ShapeshiftSystem shapeshift;
@@ -475,6 +472,18 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
             lore.add(c("§7" + el.desc));
             lore.add(c(" "));
             lore.add(c("§eالقدرة: " + el.color + el.ability));
+            if (el != Element.SHAPESHIFT) {
+                int affinityPercent = getConfig().getBoolean("environmental-bonus.enabled", true)
+                        ? (int) Math.round((getConfig().getDouble(
+                                "environmental-bonus.multipliers." + el.name(),
+                                getConfig().getDouble("environmental-bonus.default-multiplier", 1.25)) - 1.0) * 100.0)
+                        : 0;
+                lore.add(c("§6✦ تعزيز البيئة: +" + Math.max(0, affinityPercent) + "%"));
+                lore.add(c("§7" + ElementAffinity.requirement(el)));
+                lore.add(c("§8يقوى الضرر والشفاء والتحكم والحركة في هذه البيئة"));
+                lore.add(c("§eكل لفل من 1 إلى 50 يفتح تقنية جديدة: 10 أساسية + 40 تطور"));
+                lore.add(c("§7من لفل 51 إلى 100 تزيد قوة تقنياتك كل 10 مستويات فقط"));
+            }
             if (el == Element.SHAPESHIFT) {
                 lore.add(c("§dكل لفل يفتح خانة شكل جديدة حتى 10 أشكال"));
                 lore.add(c("§7اقتُل سبايدر أو كريبر أو أحد الكائنات المحددة لتتعلم شكله"));
@@ -523,6 +532,10 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
         p.sendMessage(c("§6✦ §fاتعلمت قوة " + el.color + el.ar + "§f! اجمع النقاط من اللعب، واكتشف الاختبارات السرية."));
         p.sendMessage(c("§eوضع القوة: اضغط §fF §eللتفعيل | سكرول للتبديل | كليك يمين للاستخدام | كليك شمال للضرب بقوتك."));
         p.sendMessage(c("§7حركتك الحالية: " + el.color + unarmedMoveName(el) + " §8| §7تتطور مع المستوى."));
+        if (el != Element.SHAPESHIFT) {
+            p.sendMessage(c("§6✦ بيئتك الطبيعية تقوّي العنصر: §f" + ElementAffinity.requirement(el)));
+            p.sendMessage(c("§7كل لفل من 1 إلى 50 يفتح تقنية جديدة؛ من 51 إلى 100 تزيد القوة فقط كل 10 مستويات."));
+        }
         if (el == Element.SHAPESHIFT) {
             p.sendMessage(c("§dاقتل الكائنات العشرة لتتعلم أشكالها. استخدم §e/gmagic forms §dلعرض سجل التحول."));
             p.sendMessage(c("§7كل مستوى يفتح خانة إضافية؛ الحد الأقصى 10 أشكال."));
@@ -699,6 +712,7 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
             }
             p.sendMessage(c("§6✦ §fارتفع مستواك إلى §e" + newLevel + "§f!"));
             if (shapeshift != null) shapeshift.onLevelUp(p, oldLevel, newLevel);
+            if (power != null) power.onLevelUp(p, oldLevel, newLevel);
             p.showTitle(net.kyori.adventure.title.Title.title(
                     c("§6✦ لفل " + newLevel + " ✦"), c(el.color + "قوة " + el.ar)));
             if (newLevel == cap && completedTrials(p) < TOTAL_TRIALS) showTrialHint(p);
@@ -734,6 +748,7 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
             }
         }
         if (w == null) return;
+        if (atk != null) e.setDamage(e.getDamage() * environmentMultiplier(atk, w.el()));
         hitFx(atk, v, w);
     }
 
@@ -750,13 +765,13 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
             if (Math.random() < chance) {
                 victim.getWorld().strikeLightningEffect(victim.getLocation());
                 chainLightning(atk, victim, tier, Math.min(1 + tier, 4), 4.5 + tier * 0.7);
-                atk.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, 20 + tier * 8, 0));
+                addEnvironmentEffect(atk, weapon.el(), atk, PotionEffectType.SPEED, 20 + tier * 8, 0);
             }
         }
 
         // Higher-tier weapons carry a stronger impact signature in addition to their active skill.
         if (tier == 2) {
-            push(victim, atk.getLocation(), 0.12 + tier * 0.04, 0.08);
+            push(atk, weapon.el(), victim, atk.getLocation(), 0.12 + tier * 0.04, 0.08);
         } else if (tier >= 4 && element != Element.WIND && element != Element.LIGHTNING) {
             victim.getWorld().spawnParticle(Particle.SWEEP_ATTACK, victim.getLocation().add(0, 1, 0), 1);
         }
@@ -768,68 +783,68 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
         int shortTicks = 24 + tier * 12;
         switch (element) {
             case FIRE -> {
-                target.setFireTicks(Math.max(target.getFireTicks(), 30 + tier * 18));
+                target.setFireTicks(Math.max(target.getFireTicks(), environmentDuration(attacker, element, 30 + tier * 18)));
                 world.spawnParticle(Particle.FLAME, at, 5 + tier * 2, 0.18, 0.25, 0.18, 0.015);
             }
             case WATER -> {
-                target.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, shortTicks, tier >= 4 ? 1 : 0));
+                addEnvironmentEffect(attacker, element, target, PotionEffectType.SLOWNESS, shortTicks, tier >= 4 ? 1 : 0);
                 world.spawnParticle(Particle.SPLASH, at, 8 + tier * 2, 0.2, 0.3, 0.2, 0.04);
             }
             case EARTH -> {
-                target.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, shortTicks, 1));
-                if (tier >= 3) target.addPotionEffect(new PotionEffect(PotionEffectType.WEAKNESS, shortTicks, 0));
-                attacker.addPotionEffect(new PotionEffect(PotionEffectType.ABSORPTION, 30 + tier * 8, 0));
+                addEnvironmentEffect(attacker, element, target, PotionEffectType.SLOWNESS, shortTicks, 1);
+                if (tier >= 3) addEnvironmentEffect(attacker, element, target, PotionEffectType.WEAKNESS, shortTicks, 0);
+                addEnvironmentEffect(attacker, element, attacker, PotionEffectType.ABSORPTION, 30 + tier * 8, 0);
                 world.spawnParticle(Particle.BLOCK, at, 8 + tier * 2, 0.2, 0.25, 0.2, 0.06,
                         Material.STONE.createBlockData());
             }
             case WIND -> {
                 Vector away = target.getLocation().toVector().subtract(attacker.getLocation().toVector());
                 if (away.lengthSquared() > 0.001) away.normalize(); else away = attacker.getLocation().getDirection().normalize();
-                target.setVelocity(target.getVelocity().add(away.multiply(0.12 + tier * 0.035).setY(0.08)));
+                elementalVelocity(attacker, element, target, target.getVelocity().add(away.multiply(0.12 + tier * 0.035).setY(0.08)));
                 world.spawnParticle(Particle.CLOUD, at, 7 + tier, 0.2, 0.2, 0.2, 0.025);
             }
             case LIGHTNING -> {
                 world.spawnParticle(Particle.ELECTRIC_SPARK, at, 12 + tier * 4, 0.22, 0.35, 0.22, 0.12);
-                target.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 10 + tier * 3, 0));
+                addEnvironmentEffect(attacker, element, target, PotionEffectType.SLOWNESS, 10 + tier * 3, 0);
             }
             case SHADOW -> {
-                target.addPotionEffect(new PotionEffect(PotionEffectType.WITHER, 35 + tier * 16, 0));
-                if (tier >= 3) target.addPotionEffect(new PotionEffect(PotionEffectType.BLINDNESS, 12 + tier * 4, 0));
+                addEnvironmentEffect(attacker, element, target, PotionEffectType.WITHER, 35 + tier * 16, 0);
+                if (tier >= 3) addEnvironmentEffect(attacker, element, target, PotionEffectType.BLINDNESS, 12 + tier * 4, 0);
                 world.spawnParticle(Particle.PORTAL, at, 8 + tier * 3, 0.2, 0.35, 0.2, 0.08);
             }
             case ICE -> {
-                target.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 45 + tier * 18, 1 + (tier >= 4 ? 1 : 0)));
-                target.setFreezeTicks(Math.min(180, target.getFreezeTicks() + 18 + tier * 12));
+                addEnvironmentEffect(attacker, element, target, PotionEffectType.SLOWNESS, 45 + tier * 18, 1 + (tier >= 4 ? 1 : 0));
+                target.setFreezeTicks(Math.min(target.getMaxFreezeTicks(), target.getFreezeTicks() + environmentDuration(attacker, element, 18 + tier * 12)));
                 world.spawnParticle(Particle.SNOWFLAKE, at, 10 + tier * 3, 0.22, 0.3, 0.22, 0.02);
             }
             case METAL -> {
-                target.addPotionEffect(new PotionEffect(PotionEffectType.WEAKNESS, 35 + tier * 14, tier >= 4 ? 1 : 0));
-                if (tier >= 3) push(target, attacker.getLocation(), 0.18 + tier * 0.06, 0.12);
+                addEnvironmentEffect(attacker, element, target, PotionEffectType.WEAKNESS, 35 + tier * 14, tier >= 4 ? 1 : 0);
+                if (tier >= 3) push(attacker, element, target, attacker.getLocation(), 0.18 + tier * 0.06, 0.12);
                 world.spawnParticle(Particle.CRIT, at, 10 + tier * 3, 0.2, 0.3, 0.2, 0.15);
             }
             case NATURE -> {
-                target.addPotionEffect(new PotionEffect(PotionEffectType.POISON, 35 + tier * 15, 0));
-                if (tier >= 3) attacker.addPotionEffect(new PotionEffect(PotionEffectType.REGENERATION, 25 + tier * 8, 0));
+                addEnvironmentEffect(attacker, element, target, PotionEffectType.POISON, 35 + tier * 15, 0);
+                if (tier >= 3) addEnvironmentEffect(attacker, element, attacker, PotionEffectType.REGENERATION, 25 + tier * 8, 0);
                 world.spawnParticle(Particle.COMPOSTER, at, 8 + tier * 3, 0.2, 0.3, 0.2, 0.03);
             }
             case LIGHT -> {
-                target.addPotionEffect(new PotionEffect(PotionEffectType.GLOWING, 55 + tier * 12, 0));
-                if (tier >= 3) target.addPotionEffect(new PotionEffect(PotionEffectType.BLINDNESS, 12 + tier * 4, 0));
+                addEnvironmentEffect(attacker, element, target, PotionEffectType.GLOWING, 55 + tier * 12, 0);
+                if (tier >= 3) addEnvironmentEffect(attacker, element, target, PotionEffectType.BLINDNESS, 12 + tier * 4, 0);
                 world.spawnParticle(Particle.END_ROD, at, 8 + tier * 3, 0.2, 0.3, 0.2, 0.03);
             }
             case SOUND -> {
-                target.addPotionEffect(new PotionEffect(PotionEffectType.NAUSEA, 30 + tier * 12, 0));
-                push(target, attacker.getLocation(), 0.16 + tier * 0.045, 0.1);
+                addEnvironmentEffect(attacker, element, target, PotionEffectType.NAUSEA, 30 + tier * 12, 0);
+                push(attacker, element, target, attacker.getLocation(), 0.16 + tier * 0.045, 0.1);
                 world.spawnParticle(Particle.NOTE, at, 7 + tier * 2, 0.25, 0.3, 0.25, 0.04);
             }
             case CRYSTAL -> {
-                target.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 35 + tier * 15, tier >= 4 ? 1 : 0));
+                addEnvironmentEffect(attacker, element, target, PotionEffectType.SLOWNESS, 35 + tier * 15, tier >= 4 ? 1 : 0);
                 world.spawnParticle(Particle.BLOCK, at, 10 + tier * 3, 0.2, 0.3, 0.2, 0.08,
                         Material.AMETHYST_BLOCK.createBlockData());
                 world.spawnParticle(Particle.END_ROD, at, 3 + tier, 0.12, 0.2, 0.12, 0.02);
             }
             case SHAPESHIFT -> {
-                target.addPotionEffect(new PotionEffect(PotionEffectType.WEAKNESS, 20 + tier * 8, 0));
+                addEnvironmentEffect(attacker, element, target, PotionEffectType.WEAKNESS, 20 + tier * 8, 0);
                 world.spawnParticle(Particle.PORTAL, at, 8 + tier * 2, 0.2, 0.3, 0.2, 0.04);
             }
         }
@@ -854,8 +869,8 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
                 next.getWorld().strikeLightningEffect(next.getLocation());
                 next.getWorld().spawnParticle(Particle.ELECTRIC_SPARK, next.getLocation().add(0, 1, 0),
                         18 + tier * 3, 0.25, 0.45, 0.25, 0.12);
-                next.damage(1.0 + tier * 0.45, attacker);
-                next.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 12 + tier * 3, 0));
+                elementalDamage(attacker, next, 1.0 + tier * 0.45, Element.LIGHTNING);
+                addEnvironmentEffect(attacker, Element.LIGHTNING, next, PotionEffectType.SLOWNESS, 12 + tier * 3, 0);
             }
         } finally {
             inAbility = previousAbilityState;
@@ -971,15 +986,59 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
         return l;
     }
 
-    void push(LivingEntity e, Location from, double power, double up) {
+    double environmentMultiplier(Player caster) {
+        return environmentMultiplier(caster, getEl(caster));
+    }
+
+    double environmentMultiplier(Player caster, Element element) {
+        return power == null ? 1.0 : power.environmentMultiplier(caster, element);
+    }
+
+    int environmentDuration(Player caster, Element element, int ticks) {
+        return power == null ? ticks : power.environmentDuration(caster, element, ticks);
+    }
+
+    void addEnvironmentEffect(Player caster, Element element, LivingEntity target,
+                              PotionEffectType type, int duration, int amplifier) {
+        if (target == null || target.isDead()) return;
+        target.addPotionEffect(new PotionEffect(type,
+                environmentDuration(caster, element, duration), amplifier));
+    }
+
+    void elementalDamage(Player caster, LivingEntity target, double damage) {
+        elementalDamage(caster, target, damage, getEl(caster));
+    }
+
+    void elementalDamage(Player caster, LivingEntity target, double damage, Element element) {
+        if (target == null || target.isDead() || damage <= 0) return;
+        target.damage(damage * environmentMultiplier(caster, element), caster);
+    }
+
+    void elementalVelocity(Player caster, org.bukkit.entity.Entity target, Vector velocity) {
+        elementalVelocity(caster, getEl(caster), target, velocity);
+    }
+
+    void elementalVelocity(Player caster, Element element, org.bukkit.entity.Entity target, Vector velocity) {
+        target.setVelocity(velocity.clone().multiply(environmentMultiplier(caster, element)));
+    }
+
+    void push(Player caster, LivingEntity e, Location from, double power, double up) {
+        push(caster, getEl(caster), e, from, power, up);
+    }
+
+    void push(Player caster, Element element, LivingEntity e, Location from, double power, double up) {
         Vector v = e.getLocation().toVector().subtract(from.toVector()).setY(0);
         if (v.lengthSquared() < 0.0001) v = new Vector(0, 0, 0); else v.normalize();
-        e.setVelocity(v.multiply(power).setY(up));
+        elementalVelocity(caster, element, e, v.multiply(power).setY(up));
     }
 
     int unarmedTier(Player p) {
-        // تتطور الحركة كل 20 مستوى: خمس درجات حتى لفل 100.
-        return Math.max(1, Math.min(5, ((levelOf(p) - 1) / 20) + 1));
+        // من لفل 1 إلى 50 تُفتح التقنيات؛ من 51 إلى 100 تزيد القوة كل 10 مستويات.
+        int level = levelOf(p);
+        int start = Math.max(51, getConfig().getInt("progression.power-scaling-start-level", 51));
+        int step = Math.max(1, getConfig().getInt("progression.power-scaling-step-levels", 10));
+        if (level < start) return 1;
+        return Math.max(2, Math.min(6, 2 + (level - start) / step));
     }
 
     String unarmedMoveName(Element el) {
@@ -1021,20 +1080,12 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
             return;
         }
         int tier = unarmedTier(p);
-        long now = System.currentTimeMillis();
-        Long ready = unarmedCd.get(p.getUniqueId());
-        if (ready != null && ready > now) {
-            p.sendActionBar(c("§c" + unarmedMoveName(el) + " جاهزة بعد " + ((ready - now) / 1000 + 1) + " ث"));
-            return;
-        }
         if (advanced == null) {
             p.sendMessage(c("§cنظام القدرات لم يبدأ بشكل صحيح. أعد تشغيل البلجن وراجع سجل السيرفر."));
             return;
         }
         if (!advanced.consumeMoveMana(p, tier)) return;
 
-        long cooldown = Math.max(6000L, 15000L - tier * 1500L);
-        unarmedCd.put(p.getUniqueId(), now + cooldown);
         updateTrial(p, TrialKind.ELEMENT_MASTERY, 1);
         if (advanced != null) advanced.noteCast(p);
 
@@ -1057,20 +1108,20 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
                         world.spawnParticle(Particle.SMOKE, point, 2, 0.08, 0.08, 0.08, 0.01);
                     }
                     for (LivingEntity target : inFront(p, 5 + tier, 0.55)) {
-                        target.damage(2.0 + tier * 1.2, p);
-                        target.setFireTicks(40 + tier * 20);
-                        push(target, start, 0.35 + tier * 0.10, 0.18);
+                        elementalDamage(p, target, 2.0 + tier * 1.2);
+                        target.setFireTicks(environmentDuration(p, el, 40 + tier * 20));
+                        push(p, target, start, 0.35 + tier * 0.10, 0.18);
                     }
                 }
                 case WATER -> {
                     // انزلاق مائي للأمام مع استعادة جزء من الصحة وإبعاد الخصوم.
-                    p.setVelocity(direction.clone().multiply(1.0 + tier * 0.16).setY(0.24));
-                    p.addPotionEffect(new PotionEffect(PotionEffectType.REGENERATION, 60 + tier * 20, 0));
-                    p.addPotionEffect(new PotionEffect(PotionEffectType.SLOW_FALLING, 30, 0));
+                    elementalVelocity(p, p, direction.clone().multiply(1.0 + tier * 0.16).setY(0.24));
+                    addEnvironmentEffect(p, el, p, PotionEffectType.REGENERATION, 60 + tier * 20, 0);
+                    addEnvironmentEffect(p, el, p, PotionEffectType.SLOW_FALLING, 30, 0);
                     ring(start, Particle.SPLASH, null, 2.2 + tier * 0.45, 9);
                     for (LivingEntity target : near(p, 3.0 + tier * 0.35)) {
-                        target.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 45 + tier * 10, 1));
-                        push(target, start, 0.45 + tier * 0.08, 0.18);
+                        addEnvironmentEffect(p, el, target, PotionEffectType.SLOWNESS, 45 + tier * 10, 1);
+                        push(p, target, start, 0.45 + tier * 0.08, 0.18);
                     }
                 }
                 case EARTH -> {
@@ -1079,19 +1130,19 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
                             1.4 + tier * 0.25, 0.15, 1.4 + tier * 0.25, 0.1,
                             Material.STONE.createBlockData());
                     ring(start, Particle.BLOCK, Material.DIRT.createBlockData(), 3.0 + tier * 0.5, 10);
-                    p.addPotionEffect(new PotionEffect(PotionEffectType.RESISTANCE, 60 + tier * 20, 0));
-                    p.addPotionEffect(new PotionEffect(PotionEffectType.ABSORPTION, 100 + tier * 20, 0));
+                    addEnvironmentEffect(p, el, p, PotionEffectType.RESISTANCE, 60 + tier * 20, 0);
+                    addEnvironmentEffect(p, el, p, PotionEffectType.ABSORPTION, 100 + tier * 20, 0);
                     for (LivingEntity target : near(p, 3.0 + tier * 0.5)) {
-                        target.damage(1.5 + tier, p);
-                        push(target, start, 0.55 + tier * 0.10, 0.65);
+                        elementalDamage(p, target, 1.5 + tier);
+                        push(p, target, start, 0.55 + tier * 0.10, 0.65);
                     }
                 }
                 case WIND -> {
                     // اندفاعة هوائية بعيدة مع سقوط آمن ودفعة هواء أمام اللاعب.
-                    p.setVelocity(direction.clone().multiply(1.45 + tier * 0.22).setY(0.32 + tier * 0.035));
-                    p.addPotionEffect(new PotionEffect(PotionEffectType.SLOW_FALLING, 70 + tier * 10, 0));
+                    elementalVelocity(p, p, direction.clone().multiply(1.45 + tier * 0.22).setY(0.32 + tier * 0.035));
+                    addEnvironmentEffect(p, el, p, PotionEffectType.SLOW_FALLING, 70 + tier * 10, 0);
                     for (LivingEntity target : inFront(p, 4.0 + tier, 0.35)) {
-                        push(target, start, 0.75 + tier * 0.12, 0.35);
+                        push(p, target, start, 0.75 + tier * 0.12, 0.35);
                     }
                     new BukkitRunnable() {
                         int ticks = 0;
@@ -1104,8 +1155,8 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
                 }
                 case LIGHTNING -> {
                     // اندفاعة برق، ثم شرارة تصيب أقرب خصوم أمام اللاعب دون صاعقة طبيعية.
-                    p.setVelocity(direction.clone().multiply(1.25 + tier * 0.20).setY(0.22));
-                    p.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, 50 + tier * 15, 1));
+                    elementalVelocity(p, p, direction.clone().multiply(1.25 + tier * 0.20).setY(0.22));
+                    addEnvironmentEffect(p, el, p, PotionEffectType.SPEED, 50 + tier * 15, 1);
                     List<LivingEntity> targets = inFront(p, 6.0 + tier, 0.4);
                     targets.sort(Comparator.comparingDouble(t -> t.getLocation().distanceSquared(start)));
                     int hits = Math.min(targets.size(), 1 + tier / 2);
@@ -1114,7 +1165,7 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
                         world.spawnParticle(Particle.ELECTRIC_SPARK, target.getLocation().add(0, 1, 0),
                                 28 + tier * 5, 0.3, 0.55, 0.3, 0.12);
                         world.strikeLightningEffect(target.getLocation());
-                        target.damage(2.0 + tier * 1.3, p);
+                        elementalDamage(p, target, 2.0 + tier * 1.3);
                     }
                     world.spawnParticle(Particle.ELECTRIC_SPARK, start, 22, 0.5, 0.6, 0.5, 0.15);
                 }
@@ -1134,8 +1185,8 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
                     }
                     world.spawnParticle(Particle.PORTAL, start.clone().add(0, 1, 0), 55, 0.35, 0.7, 0.35, 0.35);
                     p.teleport(destination);
-                    p.addPotionEffect(new PotionEffect(PotionEffectType.INVISIBILITY, 35 + tier * 12, 0));
-                    p.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, 35 + tier * 10, 1));
+                    addEnvironmentEffect(p, el, p, PotionEffectType.INVISIBILITY, 35 + tier * 12, 0);
+                    addEnvironmentEffect(p, el, p, PotionEffectType.SPEED, 35 + tier * 10, 1);
                     p.getWorld().spawnParticle(Particle.REVERSE_PORTAL,
                             destination.clone().add(0, 1, 0), 55, 0.35, 0.7, 0.35, 0.2);
                     p.getWorld().playSound(destination, Sound.ENTITY_ENDERMAN_TELEPORT, 0.9f, 1.2f);
@@ -1147,11 +1198,11 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
                         world.spawnParticle(Particle.SNOWFLAKE, point, 8 + tier * 2, 0.16, 0.16, 0.16, 0.01);
                     }
                     for (LivingEntity target : inFront(p, 5 + tier, 0.45)) {
-                        target.damage(1.5 + tier * 1.1, p);
-                        target.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 70 + tier * 15, 1 + tier / 3));
-                        target.setFreezeTicks(Math.min(140, target.getFreezeTicks() + 35 + tier * 15));
+                        elementalDamage(p, target, 1.5 + tier * 1.1);
+                        addEnvironmentEffect(p, el, target, PotionEffectType.SLOWNESS, 70 + tier * 15, 1 + tier / 3);
+                        target.setFreezeTicks(Math.min(target.getMaxFreezeTicks(), target.getFreezeTicks() + environmentDuration(p, el, 35 + tier * 15)));
                     }
-                    p.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, 35 + tier * 8, 0));
+                    addEnvironmentEffect(p, el, p, PotionEffectType.SPEED, 35 + tier * 8, 0);
                 }
                 case METAL -> {
                     // وضعية فولاذية تمنح حماية ثم تطلق دفعة معدنية حول اللاعب.
@@ -1159,34 +1210,34 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
                             1.5 + tier * 0.2, 0.35, 1.5 + tier * 0.2, 0.1,
                             Material.IRON_BLOCK.createBlockData());
                     ring(start, Particle.CRIT, null, 2.5 + tier * 0.5, 9);
-                    p.addPotionEffect(new PotionEffect(PotionEffectType.RESISTANCE, 70 + tier * 18, 1));
-                    p.addPotionEffect(new PotionEffect(PotionEffectType.ABSORPTION, 100 + tier * 20, 1));
+                    addEnvironmentEffect(p, el, p, PotionEffectType.RESISTANCE, 70 + tier * 18, 1);
+                    addEnvironmentEffect(p, el, p, PotionEffectType.ABSORPTION, 100 + tier * 20, 1);
                     for (LivingEntity target : near(p, 3.0 + tier * 0.45)) {
-                        target.damage(1.5 + tier, p);
-                        push(target, start, 0.65 + tier * 0.12, 0.3);
+                        elementalDamage(p, target, 1.5 + tier);
+                        push(p, target, start, 0.65 + tier * 0.12, 0.3);
                     }
                 }
                 case NATURE -> {
                     // جذور خضراء تحمي صاحبها وتحبس الخصوم القريبين.
                     ring(start, Particle.HAPPY_VILLAGER, null, 2.6 + tier * 0.5, 10);
                     world.spawnParticle(Particle.COMPOSTER, start.clone().add(0, 0.4, 0), 35 + tier * 8, 1, 0.2, 1, 0.02);
-                    p.addPotionEffect(new PotionEffect(PotionEffectType.REGENERATION, 90 + tier * 20, 0));
-                    p.addPotionEffect(new PotionEffect(PotionEffectType.ABSORPTION, 80 + tier * 15, 0));
+                    addEnvironmentEffect(p, el, p, PotionEffectType.REGENERATION, 90 + tier * 20, 0);
+                    addEnvironmentEffect(p, el, p, PotionEffectType.ABSORPTION, 80 + tier * 15, 0);
                     for (LivingEntity target : near(p, 3.2 + tier * 0.4)) {
-                        target.damage(1.0 + tier * 0.7, p);
-                        target.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 75 + tier * 12, 2));
-                        push(target, start, 0.25, 0.12);
+                        elementalDamage(p, target, 1.0 + tier * 0.7);
+                        addEnvironmentEffect(p, el, target, PotionEffectType.SLOWNESS, 75 + tier * 12, 2);
+                        push(p, target, start, 0.25, 0.12);
                     }
                 }
                 case LIGHT -> {
                     // ومضة قوية تعمي الخصوم وتمنح اللاعب سرعة اندفاع قصيرة.
                     world.spawnParticle(Particle.END_ROD, start.clone().add(0, 1, 0), 55 + tier * 12, 1.1, 0.9, 1.1, 0.08);
                     world.spawnParticle(Particle.FLASH, start.clone().add(0, 1, 0), 1);
-                    p.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, 65 + tier * 12, 1 + tier / 4));
-                    p.addPotionEffect(new PotionEffect(PotionEffectType.GLOWING, 50 + tier * 10, 0));
+                    addEnvironmentEffect(p, el, p, PotionEffectType.SPEED, 65 + tier * 12, 1 + tier / 4);
+                    addEnvironmentEffect(p, el, p, PotionEffectType.GLOWING, 50 + tier * 10, 0);
                     for (LivingEntity target : near(p, 3.5 + tier * 0.45)) {
-                        target.damage(1.0 + tier, p);
-                        target.addPotionEffect(new PotionEffect(PotionEffectType.BLINDNESS, 35 + tier * 12, 0));
+                        elementalDamage(p, target, 1.0 + tier);
+                        addEnvironmentEffect(p, el, target, PotionEffectType.BLINDNESS, 35 + tier * 12, 0);
                     }
                 }
                 case SOUND -> {
@@ -1195,8 +1246,8 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
                     ring(start, Particle.NOTE, null, 3.0 + tier * 0.65, 10);
                     world.playSound(start, Sound.BLOCK_NOTE_BLOCK_CHIME, 1.3f, 0.55f + tier * 0.12f);
                     for (LivingEntity target : near(p, 4.0 + tier * 0.5)) {
-                        target.damage(2.0 + tier, p);
-                        push(target, start, 1.0 + tier * 0.15, 0.5 + tier * 0.08);
+                        elementalDamage(p, target, 2.0 + tier);
+                        push(p, target, start, 1.0 + tier * 0.15, 0.5 + tier * 0.08);
                     }
                 }
                 case CRYSTAL -> {
@@ -1211,8 +1262,8 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
                     int hits = Math.min(targets.size(), 1 + tier / 2);
                     for (int i = 0; i < hits; i++) {
                         LivingEntity target = targets.get(i);
-                        target.damage(2.0 + tier * 1.15, p);
-                        target.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 45 + tier * 10, 1));
+                        elementalDamage(p, target, 2.0 + tier * 1.15);
+                        addEnvironmentEffect(p, el, target, PotionEffectType.SLOWNESS, 45 + tier * 10, 1);
                         world.spawnParticle(Particle.BLOCK, target.getLocation().add(0, 1, 0), 22,
                                 0.25, 0.4, 0.25, 0.08, Material.AMETHYST_BLOCK.createBlockData());
                     }
@@ -1280,14 +1331,14 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
 
     void weaponDamage(Player player, LivingEntity target, W weapon, double damage, Location origin,
                       double knockback, double knockup) {
-        target.damage(damage, player);
+        elementalDamage(player, target, damage, weapon.el());
         applyWeaponElementEffect(player, target, weapon.el(), weapon.lvl());
-        if (knockback > 0) push(target, origin, knockback, knockup);
+        if (knockback > 0) push(player, weapon.el(), target, origin, knockback, knockup);
     }
 
     void launchWeaponArrow(Player player, W weapon, double damage) {
         Arrow arrow = player.launchProjectile(Arrow.class);
-        arrow.setVelocity(player.getLocation().getDirection().normalize().multiply(2.8));
+        elementalVelocity(player, weapon.el(), arrow, player.getLocation().getDirection().normalize().multiply(2.8));
         arrow.setDamage(damage);
         arrow.setCritical(true);
         arrow.setMetadata("gm", new FixedMetadataValue(this,
@@ -1316,8 +1367,8 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
                 return;
             }
             world.strikeLightningEffect(target.getLocation());
-            target.damage(damage + 1.5, player);
-            target.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 16, 1));
+            elementalDamage(player, target, damage + 1.5, Element.LIGHTNING);
+            addEnvironmentEffect(player, Element.LIGHTNING, target, PotionEffectType.SLOWNESS, 16, 1);
             world.spawnParticle(Particle.ELECTRIC_SPARK, target.getLocation().add(0, 1, 0), 35, 0.3, 0.5, 0.3, 0.15);
             chainLightning(player, target, tier, 1, 4.0);
         } else if (tier == 2) {
@@ -1328,8 +1379,8 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
             for (int i = 0; i < limit; i++) {
                 LivingEntity target = targets.get(i);
                 world.strikeLightningEffect(target.getLocation());
-                target.damage(damage * 1.05, player);
-                target.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 22, 1));
+                elementalDamage(player, target, damage * 1.05, Element.LIGHTNING);
+                addEnvironmentEffect(player, Element.LIGHTNING, target, PotionEffectType.SLOWNESS, 22, 1);
                 world.spawnParticle(Particle.ELECTRIC_SPARK, target.getLocation().add(0, 1, 0), 26, 0.35, 0.6, 0.35, 0.14);
             }
         } else if (tier == 3) {
@@ -1342,10 +1393,10 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
             for (int i = 0; i < limit; i++) {
                 LivingEntity target = targets.get(i);
                 world.strikeLightningEffect(target.getLocation());
-                target.damage(damage * 1.15, player);
-                target.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 28, 1));
+                elementalDamage(player, target, damage * 1.15, Element.LIGHTNING);
+                addEnvironmentEffect(player, Element.LIGHTNING, target, PotionEffectType.SLOWNESS, 28, 1);
             }
-            player.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, 90, 1));
+            addEnvironmentEffect(player, Element.LIGHTNING, player, PotionEffectType.SPEED, 90, 1);
             world.spawnParticle(Particle.ELECTRIC_SPARK, origin.clone().add(0, 1, 0), 65, 2.0, 1.0, 2.0, 0.2);
         } else {
             List<LivingEntity> targets = near(player, 11.0);
@@ -1357,12 +1408,12 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
             for (int i = 0; i < limit; i++) {
                 LivingEntity target = targets.get(i);
                 world.strikeLightningEffect(target.getLocation());
-                target.damage(damage * 1.35, player);
-                target.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 35, 1));
+                elementalDamage(player, target, damage * 1.35, Element.LIGHTNING);
+                addEnvironmentEffect(player, Element.LIGHTNING, target, PotionEffectType.SLOWNESS, 35, 1);
                 world.spawnParticle(Particle.ELECTRIC_SPARK, target.getLocation().add(0, 1, 0), 50, 0.45, 0.8, 0.45, 0.18);
             }
-            player.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, 130, 1));
-            player.addPotionEffect(new PotionEffect(PotionEffectType.HASTE, 100, 1));
+            addEnvironmentEffect(player, Element.LIGHTNING, player, PotionEffectType.SPEED, 130, 1);
+            addEnvironmentEffect(player, Element.LIGHTNING, player, PotionEffectType.HASTE, 100, 1);
         }
     }
 
@@ -1393,10 +1444,14 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
         return count;
     }
 
-    void pullTarget(LivingEntity target, Location center, double strength, double lift) {
+    void pullTarget(Player caster, LivingEntity target, Location center, double strength, double lift) {
+        pullTarget(caster, getEl(caster), target, center, strength, lift);
+    }
+
+    void pullTarget(Player caster, Element element, LivingEntity target, Location center, double strength, double lift) {
         Vector pull = center.toVector().subtract(target.getLocation().toVector()).setY(0);
         if (pull.lengthSquared() > 0.001) pull.normalize();
-        target.setVelocity(target.getVelocity().add(pull.multiply(strength)).setY(lift));
+        elementalVelocity(caster, element, target, target.getVelocity().add(pull.multiply(strength)).setY(lift));
     }
 
     void lineParticles(Player player, Particle particle, int points, double spacing, int amount) {
@@ -1414,19 +1469,19 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
             case FIRE -> {
                 switch (tier) {
                     case 1 -> { lineParticles(player, Particle.FLAME, 5, 0.75, 5); hitFront(player, weapon, origin, damage + 1.4, 7.0, 0.45, 1, 0.28, 0.1); }
-                    case 2 -> { lineParticles(player, Particle.FLAME, 8, 0.75, 9); hitFront(player, weapon, origin, damage + 2.0, 8.0, 0.2, 4, 0.42, 0.18); player.addPotionEffect(new PotionEffect(PotionEffectType.STRENGTH, 45, 0)); }
+                    case 2 -> { lineParticles(player, Particle.FLAME, 8, 0.75, 9); hitFront(player, weapon, origin, damage + 2.0, 8.0, 0.2, 4, 0.42, 0.18); addEnvironmentEffect(player, weapon.el(), player, PotionEffectType.STRENGTH, 45, 0); }
                     case 3 -> launchWeaponArrow(player, weapon, damage + 2.4);
                     case 4 -> { ring(origin, Particle.FLAME, null, 6.5, 9); hitArea(player, weapon, origin, damage + 2.4, 6.5, 6, 0.48, 0.18); world.spawnParticle(Particle.SOUL_FIRE_FLAME, origin.clone().add(0, 1, 0), 45, 1.5, 0.8, 1.5, 0.04); }
-                    default -> { ring(origin, Particle.FLAME, null, 10.0, 12); hitArea(player, weapon, origin, damage + 4.2, 10.0, 9, 0.85, 0.34); player.addPotionEffect(new PotionEffect(PotionEffectType.STRENGTH, 120, 1)); player.addPotionEffect(new PotionEffect(PotionEffectType.RESISTANCE, 80, 0)); }
+                    default -> { ring(origin, Particle.FLAME, null, 10.0, 12); hitArea(player, weapon, origin, damage + 4.2, 10.0, 9, 0.85, 0.34); addEnvironmentEffect(player, weapon.el(), player, PotionEffectType.STRENGTH, 120, 1); addEnvironmentEffect(player, weapon.el(), player, PotionEffectType.RESISTANCE, 80, 0); }
                 }
             }
             case WATER -> {
                 switch (tier) {
-                    case 1 -> { lineParticles(player, Particle.SPLASH, 5, 0.7, 5); if (hitFront(player, weapon, origin, damage + 1.1, 7.5, 0.5, 1, 0.1, 0.0) > 0) player.setHealth(Math.min(player.getMaxHealth(), player.getHealth() + 1.0)); }
-                    case 2 -> { lineParticles(player, Particle.SPLASH, 8, 0.7, 12); hitFront(player, weapon, origin, damage + 1.8, 8.5, 0.1, 5, 0.78, 0.24); player.addPotionEffect(new PotionEffect(PotionEffectType.REGENERATION, 50, 0)); }
+                    case 1 -> { lineParticles(player, Particle.SPLASH, 5, 0.7, 5); if (hitFront(player, weapon, origin, damage + 1.1, 7.5, 0.5, 1, 0.1, 0.0) > 0) player.setHealth(Math.min(player.getMaxHealth(), player.getHealth() + environmentMultiplier(player, weapon.el()))); }
+                    case 2 -> { lineParticles(player, Particle.SPLASH, 8, 0.7, 12); hitFront(player, weapon, origin, damage + 1.8, 8.5, 0.1, 5, 0.78, 0.24); addEnvironmentEffect(player, weapon.el(), player, PotionEffectType.REGENERATION, 50, 0); }
                     case 3 -> launchWeaponArrow(player, weapon, damage + 2.0);
-                    case 4 -> { ring(origin, Particle.SPLASH, null, 6.5, 10); for (LivingEntity target : near(player, 6.5)) { weaponDamage(player, target, weapon, damage + 1.2, origin, 0, 0); pullTarget(target, origin, 0.55, 0.08); } }
-                    default -> { ring(origin, Particle.SPLASH, null, 10.0, 14); hitArea(player, weapon, origin, damage + 3.6, 10.0, 9, 0.9, 0.3); player.addPotionEffect(new PotionEffect(PotionEffectType.REGENERATION, 140, 1)); player.addPotionEffect(new PotionEffect(PotionEffectType.WATER_BREATHING, 160, 0)); }
+                    case 4 -> { ring(origin, Particle.SPLASH, null, 6.5, 10); for (LivingEntity target : near(player, 6.5)) { weaponDamage(player, target, weapon, damage + 1.2, origin, 0, 0); pullTarget(player, weapon.el(), target, origin, 0.55, 0.08); } }
+                    default -> { ring(origin, Particle.SPLASH, null, 10.0, 14); hitArea(player, weapon, origin, damage + 3.6, 10.0, 9, 0.9, 0.3); addEnvironmentEffect(player, weapon.el(), player, PotionEffectType.REGENERATION, 140, 1); addEnvironmentEffect(player, weapon.el(), player, PotionEffectType.WATER_BREATHING, 160, 0); }
                 }
             }
             case EARTH -> {
@@ -1434,27 +1489,27 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
                     case 1 -> { lineParticles(player, Particle.CRIT, 5, 0.65, 4); hitFront(player, weapon, origin, damage + 1.7, 6.5, 0.4, 1, 0.2, 0.55); }
                     case 2 -> { world.spawnParticle(Particle.BLOCK, origin, 85, 3.2, 0.15, 3.2, 0.1, Material.STONE.createBlockData()); ring(origin, Particle.BLOCK, Material.STONE.createBlockData(), 5.0, 8); hitArea(player, weapon, origin, damage + 2.0, 5.0, 6, 0.45, 0.72); }
                     case 3 -> launchWeaponArrow(player, weapon, damage + 2.5);
-                    case 4 -> { ring(origin, Particle.BLOCK, Material.DEEPSLATE.createBlockData(), 6.5, 9); hitArea(player, weapon, origin, damage + 2.2, 6.5, 7, 0.62, 0.36); player.addPotionEffect(new PotionEffect(PotionEffectType.RESISTANCE, 100, 0)); player.addPotionEffect(new PotionEffect(PotionEffectType.ABSORPTION, 100, 1)); }
-                    default -> { ring(origin, Particle.BLOCK, Material.STONE.createBlockData(), 10.0, 12); hitArea(player, weapon, origin, damage + 4.3, 10.0, 10, 0.95, 0.78); player.addPotionEffect(new PotionEffect(PotionEffectType.RESISTANCE, 160, 1)); player.addPotionEffect(new PotionEffect(PotionEffectType.ABSORPTION, 180, 2)); }
+                    case 4 -> { ring(origin, Particle.BLOCK, Material.DEEPSLATE.createBlockData(), 6.5, 9); hitArea(player, weapon, origin, damage + 2.2, 6.5, 7, 0.62, 0.36); addEnvironmentEffect(player, weapon.el(), player, PotionEffectType.RESISTANCE, 100, 0); addEnvironmentEffect(player, weapon.el(), player, PotionEffectType.ABSORPTION, 100, 1); }
+                    default -> { ring(origin, Particle.BLOCK, Material.STONE.createBlockData(), 10.0, 12); hitArea(player, weapon, origin, damage + 4.3, 10.0, 10, 0.95, 0.78); addEnvironmentEffect(player, weapon.el(), player, PotionEffectType.RESISTANCE, 160, 1); addEnvironmentEffect(player, weapon.el(), player, PotionEffectType.ABSORPTION, 180, 2); }
                 }
             }
             case WIND -> {
                 switch (tier) {
-                    case 1 -> { player.setVelocity(player.getLocation().getDirection().normalize().multiply(0.65).setY(0.12)); lineParticles(player, Particle.CLOUD, 5, 0.55, 5); hitFront(player, weapon, origin, damage + 1.0, 6.5, 0.42, 1, 0.6, 0.14); }
+                    case 1 -> { elementalVelocity(player, weapon.el(), player, player.getLocation().getDirection().normalize().multiply(0.65).setY(0.12)); lineParticles(player, Particle.CLOUD, 5, 0.55, 5); hitFront(player, weapon, origin, damage + 1.0, 6.5, 0.42, 1, 0.6, 0.14); }
                     case 2 -> { ring(origin, Particle.CLOUD, null, 5.2, 8); hitArea(player, weapon, origin, damage + 1.9, 5.2, 7, 0.82, 0.42); world.spawnParticle(Particle.CLOUD, origin.clone().add(0, 1, 0), 65, 1.8, 0.8, 1.8, 0.06); }
                     case 3 -> launchWeaponArrow(player, weapon, damage + 2.1);
-                    case 4 -> { Vector dash = player.getLocation().getDirection().normalize().multiply(1.65).setY(0.28); player.setVelocity(dash); player.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, 80, 1)); lineParticles(player, Particle.CLOUD, 10, 0.45, 5); hitFront(player, weapon, origin, damage + 2.3, 7.5, 0.15, 4, 0.65, 0.24); }
-                    default -> { ring(origin, Particle.CLOUD, null, 10.0, 12); hitArea(player, weapon, origin, damage + 3.8, 10.0, 9, 0.95, 0.9); player.addPotionEffect(new PotionEffect(PotionEffectType.SLOW_FALLING, 180, 0)); player.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, 160, 1)); }
+                    case 4 -> { Vector dash = player.getLocation().getDirection().normalize().multiply(1.65).setY(0.28); elementalVelocity(player, weapon.el(), player, dash); addEnvironmentEffect(player, weapon.el(), player, PotionEffectType.SPEED, 80, 1); lineParticles(player, Particle.CLOUD, 10, 0.45, 5); hitFront(player, weapon, origin, damage + 2.3, 7.5, 0.15, 4, 0.65, 0.24); }
+                    default -> { ring(origin, Particle.CLOUD, null, 10.0, 12); hitArea(player, weapon, origin, damage + 3.8, 10.0, 9, 0.95, 0.9); addEnvironmentEffect(player, weapon.el(), player, PotionEffectType.SLOW_FALLING, 180, 0); addEnvironmentEffect(player, weapon.el(), player, PotionEffectType.SPEED, 160, 1); }
                 }
             }
             case LIGHTNING -> lightningWeaponAbility(player, weapon, origin, tier, damage);
             case SHADOW -> {
                 switch (tier) {
-                    case 1 -> { lineParticles(player, Particle.PORTAL, 5, 0.7, 6); hitFront(player, weapon, origin, damage + 1.5, 7.0, 0.45, 1, 0.2, 0.08); player.addPotionEffect(new PotionEffect(PotionEffectType.INVISIBILITY, 25, 0)); }
-                    case 2 -> { ring(origin, Particle.PORTAL, null, 5.5, 9); hitArea(player, weapon, origin, damage + 1.7, 5.5, 6, 0.3, 0.12); for (LivingEntity target : near(player, 5.5)) target.addPotionEffect(new PotionEffect(PotionEffectType.BLINDNESS, 35, 0)); }
+                    case 1 -> { lineParticles(player, Particle.PORTAL, 5, 0.7, 6); hitFront(player, weapon, origin, damage + 1.5, 7.0, 0.45, 1, 0.2, 0.08); addEnvironmentEffect(player, weapon.el(), player, PotionEffectType.INVISIBILITY, 25, 0); }
+                    case 2 -> { ring(origin, Particle.PORTAL, null, 5.5, 9); hitArea(player, weapon, origin, damage + 1.7, 5.5, 6, 0.3, 0.12); for (LivingEntity target : near(player, 5.5)) addEnvironmentEffect(player, weapon.el(), target, PotionEffectType.BLINDNESS, 35, 0); }
                     case 3 -> launchWeaponArrow(player, weapon, damage + 2.3);
-                    case 4 -> { player.setVelocity(player.getLocation().getDirection().normalize().multiply(1.45).setY(0.18)); player.addPotionEffect(new PotionEffect(PotionEffectType.INVISIBILITY, 65, 0)); lineParticles(player, Particle.PORTAL, 9, 0.5, 6); hitFront(player, weapon, origin, damage + 2.0, 8.0, 0.1, 4, 0.35, 0.14); }
-                    default -> { ring(origin, Particle.PORTAL, null, 9.5, 13); hitArea(player, weapon, origin, damage + 3.7, 9.5, 9, 0.75, 0.28); for (LivingEntity target : near(player, 9.5)) target.addPotionEffect(new PotionEffect(PotionEffectType.BLINDNESS, 50, 0)); player.addPotionEffect(new PotionEffect(PotionEffectType.INVISIBILITY, 100, 0)); }
+                    case 4 -> { elementalVelocity(player, weapon.el(), player, player.getLocation().getDirection().normalize().multiply(1.45).setY(0.18)); addEnvironmentEffect(player, weapon.el(), player, PotionEffectType.INVISIBILITY, 65, 0); lineParticles(player, Particle.PORTAL, 9, 0.5, 6); hitFront(player, weapon, origin, damage + 2.0, 8.0, 0.1, 4, 0.35, 0.14); }
+                    default -> { ring(origin, Particle.PORTAL, null, 9.5, 13); hitArea(player, weapon, origin, damage + 3.7, 9.5, 9, 0.75, 0.28); for (LivingEntity target : near(player, 9.5)) addEnvironmentEffect(player, weapon.el(), target, PotionEffectType.BLINDNESS, 50, 0); addEnvironmentEffect(player, weapon.el(), player, PotionEffectType.INVISIBILITY, 100, 0); }
                 }
             }
             case ICE -> {
@@ -1462,8 +1517,8 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
                     case 1 -> { lineParticles(player, Particle.SNOWFLAKE, 5, 0.7, 6); hitFront(player, weapon, origin, damage + 1.3, 7.0, 0.5, 1, 0.1, 0.0); }
                     case 2 -> { lineParticles(player, Particle.SNOWFLAKE, 8, 0.7, 12); hitFront(player, weapon, origin, damage + 1.8, 8.5, 0.1, 5, 0.3, 0.12); }
                     case 3 -> launchWeaponArrow(player, weapon, damage + 2.2);
-                    case 4 -> { ring(origin, Particle.SNOWFLAKE, null, 6.5, 11); hitArea(player, weapon, origin, damage + 2.0, 6.5, 7, 0.25, 0.08); for (LivingEntity target : near(player, 6.5)) target.setFreezeTicks(Math.min(240, target.getFreezeTicks() + 90)); }
-                    default -> { ring(origin, Particle.SNOWFLAKE, null, 10.0, 15); hitArea(player, weapon, origin, damage + 3.9, 10.0, 10, 0.32, 0.1); for (LivingEntity target : near(player, 10.0)) { target.setFreezeTicks(Math.min(300, target.getFreezeTicks() + 150)); target.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 100, 3)); } player.addPotionEffect(new PotionEffect(PotionEffectType.RESISTANCE, 100, 0)); }
+                    case 4 -> { ring(origin, Particle.SNOWFLAKE, null, 6.5, 11); hitArea(player, weapon, origin, damage + 2.0, 6.5, 7, 0.25, 0.08); for (LivingEntity target : near(player, 6.5)) target.setFreezeTicks(Math.min(target.getMaxFreezeTicks(), target.getFreezeTicks() + environmentDuration(player, weapon.el(), 90))); }
+                    default -> { ring(origin, Particle.SNOWFLAKE, null, 10.0, 15); hitArea(player, weapon, origin, damage + 3.9, 10.0, 10, 0.32, 0.1); for (LivingEntity target : near(player, 10.0)) { target.setFreezeTicks(Math.min(target.getMaxFreezeTicks(), target.getFreezeTicks() + environmentDuration(player, weapon.el(), 150))); addEnvironmentEffect(player, weapon.el(), target, PotionEffectType.SLOWNESS, 100, 3); } addEnvironmentEffect(player, weapon.el(), player, PotionEffectType.RESISTANCE, 100, 0); }
                 }
             }
             case METAL -> {
@@ -1471,26 +1526,26 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
                     case 1 -> { lineParticles(player, Particle.CRIT, 5, 0.65, 6); hitFront(player, weapon, origin, damage + 1.8, 6.5, 0.5, 1, 0.18, 0.08); }
                     case 2 -> { ring(origin, Particle.CRIT, null, 4.8, 8); hitArea(player, weapon, origin, damage + 1.9, 4.8, 7, 0.95, 0.18); }
                     case 3 -> launchWeaponArrow(player, weapon, damage + 2.6);
-                    case 4 -> { ring(origin, Particle.CRIT, null, 6.0, 8); for (LivingEntity target : near(player, 6.0)) { pullTarget(target, origin, 0.72, 0.12); weaponDamage(player, target, weapon, damage + 1.6, origin, 0, 0); } player.addPotionEffect(new PotionEffect(PotionEffectType.RESISTANCE, 65, 0)); }
-                    default -> { ring(origin, Particle.CRIT, null, 9.5, 12); hitArea(player, weapon, origin, damage + 3.8, 9.5, 10, 1.1, 0.28); player.addPotionEffect(new PotionEffect(PotionEffectType.RESISTANCE, 160, 1)); player.addPotionEffect(new PotionEffect(PotionEffectType.ABSORPTION, 160, 2)); }
+                    case 4 -> { ring(origin, Particle.CRIT, null, 6.0, 8); for (LivingEntity target : near(player, 6.0)) { pullTarget(player, weapon.el(), target, origin, 0.72, 0.12); weaponDamage(player, target, weapon, damage + 1.6, origin, 0, 0); } addEnvironmentEffect(player, weapon.el(), player, PotionEffectType.RESISTANCE, 65, 0); }
+                    default -> { ring(origin, Particle.CRIT, null, 9.5, 12); hitArea(player, weapon, origin, damage + 3.8, 9.5, 10, 1.1, 0.28); addEnvironmentEffect(player, weapon.el(), player, PotionEffectType.RESISTANCE, 160, 1); addEnvironmentEffect(player, weapon.el(), player, PotionEffectType.ABSORPTION, 160, 2); }
                 }
             }
             case NATURE -> {
                 switch (tier) {
                     case 1 -> { lineParticles(player, Particle.COMPOSTER, 5, 0.7, 6); hitFront(player, weapon, origin, damage + 1.3, 7.0, 0.48, 1, 0.1, 0.0); }
-                    case 2 -> { ring(origin, Particle.COMPOSTER, null, 5.2, 9); hitArea(player, weapon, origin, damage + 1.7, 5.2, 7, 0.18, 0.0); for (LivingEntity target : near(player, 5.2)) target.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 100, 2)); }
+                    case 2 -> { ring(origin, Particle.COMPOSTER, null, 5.2, 9); hitArea(player, weapon, origin, damage + 1.7, 5.2, 7, 0.18, 0.0); for (LivingEntity target : near(player, 5.2)) addEnvironmentEffect(player, weapon.el(), target, PotionEffectType.SLOWNESS, 100, 2); }
                     case 3 -> launchWeaponArrow(player, weapon, damage + 2.1);
-                    case 4 -> { ring(origin, Particle.HAPPY_VILLAGER, null, 6.2, 10); hitArea(player, weapon, origin, damage + 1.8, 6.2, 7, 0.2, 0.0); player.setHealth(Math.min(player.getMaxHealth(), player.getHealth() + 4.0)); player.addPotionEffect(new PotionEffect(PotionEffectType.REGENERATION, 100, 1)); }
-                    default -> { ring(origin, Particle.HAPPY_VILLAGER, null, 10.0, 13); hitArea(player, weapon, origin, damage + 3.6, 10.0, 9, 0.25, 0.0); for (LivingEntity target : near(player, 10.0)) target.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 100, 3)); player.addPotionEffect(new PotionEffect(PotionEffectType.REGENERATION, 180, 1)); player.addPotionEffect(new PotionEffect(PotionEffectType.RESISTANCE, 100, 0)); }
+                    case 4 -> { ring(origin, Particle.HAPPY_VILLAGER, null, 6.2, 10); hitArea(player, weapon, origin, damage + 1.8, 6.2, 7, 0.2, 0.0); player.setHealth(Math.min(player.getMaxHealth(), player.getHealth() + 4.0 * environmentMultiplier(player, weapon.el()))); addEnvironmentEffect(player, weapon.el(), player, PotionEffectType.REGENERATION, 100, 1); }
+                    default -> { ring(origin, Particle.HAPPY_VILLAGER, null, 10.0, 13); hitArea(player, weapon, origin, damage + 3.6, 10.0, 9, 0.25, 0.0); for (LivingEntity target : near(player, 10.0)) addEnvironmentEffect(player, weapon.el(), target, PotionEffectType.SLOWNESS, 100, 3); addEnvironmentEffect(player, weapon.el(), player, PotionEffectType.REGENERATION, 180, 1); addEnvironmentEffect(player, weapon.el(), player, PotionEffectType.RESISTANCE, 100, 0); }
                 }
             }
             case LIGHT -> {
                 switch (tier) {
                     case 1 -> { lineParticles(player, Particle.END_ROD, 6, 0.7, 5); hitFront(player, weapon, origin, damage + 1.3, 7.5, 0.52, 1, 0.1, 0.0); }
-                    case 2 -> { ring(origin, Particle.END_ROD, null, 5.0, 8); hitArea(player, weapon, origin, damage + 1.6, 5.0, 7, 0.62, 0.12); for (LivingEntity target : near(player, 5.0)) target.addPotionEffect(new PotionEffect(PotionEffectType.GLOWING, 100, 0)); }
+                    case 2 -> { ring(origin, Particle.END_ROD, null, 5.0, 8); hitArea(player, weapon, origin, damage + 1.6, 5.0, 7, 0.62, 0.12); for (LivingEntity target : near(player, 5.0)) addEnvironmentEffect(player, weapon.el(), target, PotionEffectType.GLOWING, 100, 0); }
                     case 3 -> launchWeaponArrow(player, weapon, damage + 2.2);
-                    case 4 -> { player.setVelocity(player.getLocation().getDirection().normalize().multiply(1.5).setY(0.22)); player.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, 100, 1)); lineParticles(player, Particle.END_ROD, 10, 0.45, 7); hitFront(player, weapon, origin, damage + 2.2, 8.0, 0.12, 4, 0.4, 0.12); }
-                    default -> { ring(origin, Particle.END_ROD, null, 10.0, 13); hitArea(player, weapon, origin, damage + 3.8, 10.0, 10, 0.55, 0.16); for (LivingEntity target : near(player, 10.0)) { target.addPotionEffect(new PotionEffect(PotionEffectType.GLOWING, 140, 0)); target.addPotionEffect(new PotionEffect(PotionEffectType.BLINDNESS, 35, 0)); } player.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, 180, 1)); }
+                    case 4 -> { elementalVelocity(player, weapon.el(), player, player.getLocation().getDirection().normalize().multiply(1.5).setY(0.22)); addEnvironmentEffect(player, weapon.el(), player, PotionEffectType.SPEED, 100, 1); lineParticles(player, Particle.END_ROD, 10, 0.45, 7); hitFront(player, weapon, origin, damage + 2.2, 8.0, 0.12, 4, 0.4, 0.12); }
+                    default -> { ring(origin, Particle.END_ROD, null, 10.0, 13); hitArea(player, weapon, origin, damage + 3.8, 10.0, 10, 0.55, 0.16); for (LivingEntity target : near(player, 10.0)) { addEnvironmentEffect(player, weapon.el(), target, PotionEffectType.GLOWING, 140, 0); addEnvironmentEffect(player, weapon.el(), target, PotionEffectType.BLINDNESS, 35, 0); } addEnvironmentEffect(player, weapon.el(), player, PotionEffectType.SPEED, 180, 1); }
                 }
             }
             case SOUND -> {
@@ -1499,7 +1554,7 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
                     case 2 -> { ring(origin, Particle.NOTE, null, 5.5, 8); hitArea(player, weapon, origin, damage + 1.8, 5.5, 8, 1.05, 0.28); world.playSound(origin, Sound.ENTITY_WARDEN_SONIC_BOOM, 0.8f, 1.45f); }
                     case 3 -> launchWeaponArrow(player, weapon, damage + 2.1);
                     case 4 -> { for (int pulse = 1; pulse <= 3; pulse++) ring(origin, Particle.NOTE, null, 2.0 + pulse * 1.5, 5 + pulse * 2); hitArea(player, weapon, origin, damage + 2.5, 7.0, 8, 0.85, 0.24); world.playSound(origin, Sound.BLOCK_NOTE_BLOCK_CHIME, 1.6f, 0.7f); }
-                    default -> { ring(origin, Particle.NOTE, null, 10.0, 12); hitArea(player, weapon, origin, damage + 4.0, 10.0, 10, 1.3, 0.5); world.playSound(origin, Sound.ENTITY_WARDEN_SONIC_BOOM, 1.4f, 0.8f); player.addPotionEffect(new PotionEffect(PotionEffectType.ABSORPTION, 180, 2)); }
+                    default -> { ring(origin, Particle.NOTE, null, 10.0, 12); hitArea(player, weapon, origin, damage + 4.0, 10.0, 10, 1.3, 0.5); world.playSound(origin, Sound.ENTITY_WARDEN_SONIC_BOOM, 1.4f, 0.8f); addEnvironmentEffect(player, weapon.el(), player, PotionEffectType.ABSORPTION, 180, 2); }
                 }
             }
             case CRYSTAL -> {
@@ -1507,8 +1562,8 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
                     case 1 -> { lineParticles(player, Particle.END_ROD, 5, 0.7, 7); hitFront(player, weapon, origin, damage + 1.4, 7.0, 0.5, 1, 0.12, 0.04); }
                     case 2 -> { ring(origin, Particle.BLOCK, Material.AMETHYST_BLOCK.createBlockData(), 5.0, 8); hitArea(player, weapon, origin, damage + 1.8, 5.0, 7, 0.36, 0.16); }
                     case 3 -> launchWeaponArrow(player, weapon, damage + 2.4);
-                    case 4 -> { List<LivingEntity> targets = sortedFront(player, 8.0, 0.12); if (!targets.isEmpty()) { LivingEntity target = targets.get(0); weaponDamage(player, target, weapon, damage + 2.8, origin, 0, 0); target.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 100, 5)); target.addPotionEffect(new PotionEffect(PotionEffectType.WEAKNESS, 80, 1)); target.getWorld().spawnParticle(Particle.BLOCK, target.getLocation().add(0, 1, 0), 55, 0.6, 0.9, 0.6, 0.08, Material.AMETHYST_BLOCK.createBlockData()); } }
-                    default -> { ring(origin, Particle.BLOCK, Material.AMETHYST_BLOCK.createBlockData(), 10.0, 13); hitArea(player, weapon, origin, damage + 3.9, 10.0, 10, 0.48, 0.2); world.spawnParticle(Particle.END_ROD, origin.clone().add(0, 1, 0), 100, 2.0, 1.3, 2.0, 0.06); player.addPotionEffect(new PotionEffect(PotionEffectType.ABSORPTION, 180, 1)); }
+                    case 4 -> { List<LivingEntity> targets = sortedFront(player, 8.0, 0.12); if (!targets.isEmpty()) { LivingEntity target = targets.get(0); weaponDamage(player, target, weapon, damage + 2.8, origin, 0, 0); addEnvironmentEffect(player, weapon.el(), target, PotionEffectType.SLOWNESS, 100, 5); addEnvironmentEffect(player, weapon.el(), target, PotionEffectType.WEAKNESS, 80, 1); target.getWorld().spawnParticle(Particle.BLOCK, target.getLocation().add(0, 1, 0), 55, 0.6, 0.9, 0.6, 0.08, Material.AMETHYST_BLOCK.createBlockData()); } }
+                    default -> { ring(origin, Particle.BLOCK, Material.AMETHYST_BLOCK.createBlockData(), 10.0, 13); hitArea(player, weapon, origin, damage + 3.9, 10.0, 10, 0.48, 0.2); world.spawnParticle(Particle.END_ROD, origin.clone().add(0, 1, 0), 100, 2.0, 1.3, 2.0, 0.06); addEnvironmentEffect(player, weapon.el(), player, PotionEffectType.ABSORPTION, 180, 1); }
                 }
             }
             case SHAPESHIFT -> { /* Shapeshift is an unarmed school; no weapon skills are issued. */ }
@@ -1516,12 +1571,6 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
     }
 
     void ability(Player p, W weapon) {
-        long now = System.currentTimeMillis();
-        Long ready = cd.get(p.getUniqueId());
-        if (ready != null && ready > now) {
-            p.sendActionBar(c("§cمهارة السلاح جاهزة بعد " + ((ready - now) / 1000 + 1) + " ث"));
-            return;
-        }
         if (advanced == null) {
             p.sendMessage(c("§cنظام AuraSkills Mana غير جاهز؛ لا يمكن استخدام السلاح السحري."));
             return;
@@ -1539,10 +1588,6 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
         Fx.weapon(this, p, weapon.el(), weapon.lvl());
 
         int tier = weapon.lvl();
-        long baseCooldown = getConfig().getLong("cooldowns.weapon-base", 8L);
-        long tierCooldown = getConfig().getLong("cooldowns.weapon-per-tier", 3L);
-        long cooldown = Math.max(6L, baseCooldown + (tier - 1L) * tierCooldown);
-        cd.put(p.getUniqueId(), now + cooldown * 1000L);
         updateTrial(p, TrialKind.ELEMENT_MASTERY, 1);
         advanced.noteCast(p);
 
@@ -1659,7 +1704,6 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
             p.removePotionEffect(type);
         }
         p.setFireTicks(0);
-        cd.remove(uuid);
         return removed;
     }
 
@@ -1852,7 +1896,7 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
         p.sendMessage(c("§d/gwm f §7القوة المحرمة | §d/gwm tr §7التحول | §d/gwm mn §7المانا"));
         p.sendMessage(c("§d/gwm fu <player> §7الاندماج | §d/gwm rep §7السمعة | §d/gwm b §7العقود"));
         p.sendMessage(c("§eاختصارات: m=move, s=spin, g=guard, u=ultimate, a=awaken."));
-        p.sendMessage(c("§7حركتك: " + el.color + unarmedMoveName(el) + " §8| §7الدرجة " + unarmedTier(p) + "/5"));
+        p.sendMessage(c("§7حركتك: " + el.color + unarmedMoveName(el) + " §8| §7درجة القوة " + unarmedTier(p) + "/6"));
         p.sendMessage(c("§7المانا من AuraSkills هي وقود الحركات؛ استخدم /gmagic relics و /gmagic bounty للمزيد."));
         return true;
     }

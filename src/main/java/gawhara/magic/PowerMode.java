@@ -34,6 +34,7 @@ import org.bukkit.event.player.PlayerItemHeldEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerSwapHandItemsEvent;
+import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
@@ -75,79 +76,111 @@ import java.util.function.Consumer;
  */
 final class PowerMode implements Listener {
 
-    record Ab(String name, String desc, double cost, int cd) {}
+    record Ab(String name, String desc, double cost, int baseIndex, int evolutionRank) {
+        Ab(String name, String desc, double cost) {
+            this(name, desc, cost, -1, 0);
+        }
+    }
 
     static final Map<Element, Ab[]> ABS = new EnumMap<>(Element.class);
 
     static {
         ABS.put(Element.FIRE, new Ab[]{
-                new Ab("حلقة اللهب", "النار تنتشر حواليك وتحرق اللي يقرب", 6, 12),
-                new Ab("كرة النار", "قذيفة نار تنفجر عند الهدف", 4, 2),
-                new Ab("طيران النار", "تطير بالنار في اتجاه نظرك (Shift لإيقافه)", 8, 10)});
+                new Ab("حلقة اللهب", "النار تنتشر حواليك وتحرق اللي يقرب", 6),
+                new Ab("كرة النار", "قذيفة نار تنفجر عند الهدف", 4),
+                new Ab("طيران النار", "تطير بالنار في اتجاه نظرك (Shift لإيقافه)", 8)});
         ABS.put(Element.WATER, new Ab[]{
-                new Ab("موجة المد", "موجة مية تدفع وتبطّئ قدامك وتشفيك", 4, 4),
-                new Ab("سجن الفقاعة", "فقاعة تحبس الهدف وترفعه", 5, 7),
-                new Ab("سباحة الموج", "سرعة مائية وتنفس تحت الماء", 5, 12)});
+                new Ab("موجة المد", "موجة مية تدفع وتبطّئ قدامك وتشفيك", 4),
+                new Ab("سجن الفقاعة", "فقاعة تحبس الهدف وترفعه", 5),
+                new Ab("سباحة الموج", "سرعة مائية وتنفس تحت الماء", 5)});
         ABS.put(Element.EARTH, new Ab[]{
-                new Ab("رمح الصخر", "رماح صخر تطلع من الأرض قدامك", 4, 4),
-                new Ab("درع الأرض", "درع صخري يقلل الضرر", 5, 14),
-                new Ab("الزلزال", "موجات زلزال ترمي اللي حواليك", 7, 10)});
+                new Ab("رمح الصخر", "رماح صخر تطلع من الأرض قدامك", 4),
+                new Ab("درع الأرض", "درع صخري يقلل الضرر", 5),
+                new Ab("الزلزال", "موجات زلزال ترمي اللي حواليك", 7)});
         ABS.put(Element.WIND, new Ab[]{
-                new Ab("هبّة الرياح", "هبة قوية تزق اللي قدامك", 3, 3),
-                new Ab("قفزة الريح", "قفزة عالية مع سقوط آمن", 3, 5),
-                new Ab("الإعصار", "إعصار يشفط الأعداء ويرفعهم", 7, 12)});
+                new Ab("هبّة الرياح", "هبة قوية تزق اللي قدامك", 3),
+                new Ab("قفزة الريح", "قفزة عالية مع سقوط آمن", 3),
+                new Ab("الإعصار", "إعصار يشفط الأعداء ويرفعهم", 7)});
         ABS.put(Element.LIGHTNING, new Ab[]{
-                new Ab("الشرارة", "صاعقة على الهدف وتتفرع لجنبه", 4, 3),
-                new Ab("اندفاعة البرق", "اندفاعة سريعة تصعق اللي في طريقك", 5, 6),
-                new Ab("المجال الساكن", "مجال كهربي يصعق الأقرب ليك", 7, 14)});
+                new Ab("الشرارة", "صاعقة على الهدف وتتفرع لجنبه", 4),
+                new Ab("اندفاعة البرق", "اندفاعة سريعة تصعق اللي في طريقك", 5),
+                new Ab("المجال الساكن", "مجال كهربي يصعق الأقرب ليك", 7)});
         ABS.put(Element.SHADOW, new Ab[]{
-                new Ab("خطوة الظل", "تنتقل لأقرب مكان مظلم/فيه ظل", 5, 6),
-                new Ab("ضربة الظلام", "ضربة أقوى كل ما المكان أضلم", 4, 4),
-                new Ab("عباءة الظلام", "اختفاء وقوة خارقة في الضلمة", 6, 16)});
+                new Ab("خطوة الظل", "تنتقل لأقرب مكان مظلم/فيه ظل", 5),
+                new Ab("ضربة الظلام", "ضربة أقوى كل ما المكان أضلم", 4),
+                new Ab("عباءة الظلام", "اختفاء وقوة خارقة في الضلمة", 6)});
         ABS.put(Element.ICE, new Ab[]{
-                new Ab("نوفا الصقيع", "موجة برد تجمّد اللي حواليك", 5, 8),
-                new Ab("وابل الجليد", "ثلاث شظايا جليد قدام", 4, 3),
-                new Ab("عاصفة الثلج", "عاصفة ثلج تبطّئ وتجمّد منطقة", 7, 14)});
+                new Ab("نوفا الصقيع", "موجة برد تجمّد اللي حواليك", 5),
+                new Ab("وابل الجليد", "ثلاث شظايا جليد قدام", 4),
+                new Ab("عاصفة الثلج", "عاصفة ثلج تبطّئ وتجمّد منطقة", 7)});
         ABS.put(Element.METAL, new Ab[]{
-                new Ab("درع الفولاذ", "درع حديد يقلل الضرر ويزق الأعداء", 5, 12),
-                new Ab("المغناطيس", "يسحب الأعداء ناحيتك", 5, 7),
-                new Ab("قبضة الحديد", "اندفاعة وضربة ثقيلة", 6, 8)});
+                new Ab("درع الفولاذ", "درع حديد يقلل الضرر ويزق الأعداء", 5),
+                new Ab("المغناطيس", "يسحب الأعداء ناحيتك", 5),
+                new Ab("قبضة الحديد", "اندفاعة وضربة ثقيلة", 6)});
         ABS.put(Element.NATURE, new Ab[]{
-                new Ab("قيد الجذور", "جذور تقيّد وتسمّم الأعداء", 5, 8),
-                new Ab("زهرة الشفاء", "تشفيك أنت واللاعبين القريبين", 6, 12),
-                new Ab("انفجار الأشواك", "أشواك تنفجر حواليك", 5, 7)});
+                new Ab("قيد الجذور", "جذور تقيّد وتسمّم الأعداء", 5),
+                new Ab("زهرة الشفاء", "تشفيك أنت واللاعبين القريبين", 6),
+                new Ab("انفجار الأشواك", "أشواك تنفجر حواليك", 5)});
         ABS.put(Element.LIGHT, new Ab[]{
-                new Ab("وميضة", "وميض يعمي الأعداء ويديك سرعة", 4, 8),
-                new Ab("شعاع النور", "شعاع طويل يخترق الأعداء", 5, 4),
-                new Ab("نعمة النور", "تشفيك وتشيل التأثيرات السيئة", 6, 14)});
+                new Ab("وميضة", "وميض يعمي الأعداء ويديك سرعة", 4),
+                new Ab("شعاع النور", "شعاع طويل يخترق الأعداء", 5),
+                new Ab("نعمة النور", "تشفيك وتشيل التأثيرات السيئة", 6)});
         ABS.put(Element.SOUND, new Ab[]{
-                new Ab("موجة الصدمة", "صدمة صوتية تزق قدامك", 3, 3),
-                new Ab("الانفجار الصوتي", "شعاع صوتي مدمّر", 5, 5),
-                new Ab("الصدى", "ثلاث نبضات صدى حواليك", 6, 10)});
+                new Ab("موجة الصدمة", "صدمة صوتية تزق قدامك", 3),
+                new Ab("الانفجار الصوتي", "شعاع صوتي مدمّر", 5),
+                new Ab("الصدى", "ثلاث نبضات صدى حواليك", 6)});
         ABS.put(Element.CRYSTAL, new Ab[]{
-                new Ab("وابل الشظايا", "خمس شظايا بلور", 4, 3),
-                new Ab("درع المنشور", "درع بلور يمتص الضرر", 5, 14),
-                new Ab("قفص الكريستال", "يحبس الهدف داخل قفص بلور", 6, 10)});
+                new Ab("وابل الشظايا", "خمس شظايا بلور", 4),
+                new Ab("درع المنشور", "درع بلور يمتص الضرر", 5),
+                new Ab("قفص الكريستال", "يحبس الهدف داخل قفص بلور", 6)});
         ABS.put(Element.SHAPESHIFT, new Ab[]{
-                new Ab("شبكة الصياد", "قدرة سبايدر: شبكة تثبّت الأعداء وتمنعهم من القفز", 5, 12),
-                new Ab("الانفجار المشحون", "قدرة كريبر: انفجار دائري بلا تكسير للبلوكات", 9, 24),
-                new Ab("وابل العظام", "قدرة سكيلتون: ثلاث سهام دقيقة في مروحة", 5, 7),
-                new Ab("القذيفة اللهبية", "قدرة بليز: كرة نارية ومقاومة للنار", 6, 9),
-                new Ab("قذيفة الجاست", "قدرة جاست: قذيفة ثقيلة بلا تخريب للبيئة", 10, 26),
-                new Ab("الزئير الصوتي", "قدرة واردن: موجة صوتية تخترق المسار", 12, 32),
-                new Ab("ضربة الحارس", "قدرة آيرون جولم: صدمة أرضية ودرع حديدي", 8, 20),
-                new Ab("أنياب الاستدعاء", "قدرة إيفوكر: صف من الأنياب السحرية", 9, 22),
-                new Ab("زفير التنين", "قدرة تنين الإند: كرة تنين وسحابة تنفس", 14, 38),
-                new Ab("خطوة الفراغ", "قدرة إندرمان: انتقال خلف الهدف وضربة ظل", 8, 18)});
-        // القدرات 4..10 لكل عنصر معرّفة في Moves.java
+                new Ab("شبكة الصياد", "قدرة سبايدر: شبكة تثبّت الأعداء وتمنعهم من القفز", 5),
+                new Ab("الانفجار المشحون", "قدرة كريبر: انفجار دائري بلا تكسير للبلوكات", 9),
+                new Ab("وابل العظام", "قدرة سكيلتون: ثلاث سهام دقيقة في مروحة", 5),
+                new Ab("القذيفة اللهبية", "قدرة بليز: كرة نارية ومقاومة للنار", 6),
+                new Ab("قذيفة الجاست", "قدرة جاست: قذيفة ثقيلة بلا تخريب للبيئة", 10),
+                new Ab("الزئير الصوتي", "قدرة واردن: موجة صوتية تخترق المسار", 12),
+                new Ab("ضربة الحارس", "قدرة آيرون جولم: صدمة أرضية ودرع حديدي", 8),
+                new Ab("أنياب الاستدعاء", "قدرة إيفوكر: صف من الأنياب السحرية", 9),
+                new Ab("زفير التنين", "قدرة تنين الإند: كرة تنين وسحابة تنفس", 14),
+                new Ab("خطوة الفراغ", "قدرة إندرمان: انتقال خلف الهدف وضربة ظل", 8)});
+        // أول 10 حركات أصلية، ثم 40 نسخة متطورة بميكانيكية إضافية خاصة بكل عنصر.
         for (Element e : Element.values()) {
             Ab[] base = ABS.get(e);
             Moves.Mv[] ex = Moves.MV.getOrDefault(e, new Moves.Mv[0]);
-            Ab[] all = new Ab[base.length + ex.length];
-            System.arraycopy(base, 0, all, 0, base.length);
-            for (int i = 0; i < ex.length; i++)
-                all[base.length + i] = new Ab(ex[i].name(), ex[i].desc(), ex[i].cost(), ex[i].cd());
-            ABS.put(e, all);
+            Ab[] core = new Ab[base.length + ex.length];
+            for (int i = 0; i < base.length; i++) {
+                Ab a = base[i];
+                core[i] = new Ab(a.name(), a.desc(), a.cost(), i, 0);
+            }
+            for (int i = 0; i < ex.length; i++) {
+                int index = base.length + i;
+                core[index] = new Ab(ex[i].name(), ex[i].desc(), ex[i].cost(), index, 0);
+            }
+            if (core.length != 10) {
+                throw new IllegalStateException("Each element must define exactly 10 core moves: " + e + " has " + core.length);
+            }
+            Ab[] progression = new Ab[50];
+            for (int i = 0; i < 50; i++) {
+                int baseIndex = i < 10 ? i : (i - 10) % 10;
+                int rank = i < 10 ? 0 : 1 + (i - 10) / 10;
+                Ab original = core[baseIndex];
+                if (rank == 0) {
+                    progression[i] = original;
+                } else {
+                    String prefix = switch (rank) {
+                        case 1 -> "النسخة المتطورة";
+                        case 2 -> "النسخة المعززة";
+                        case 3 -> "النسخة المتقدمة";
+                        default -> "النسخة القصوى";
+                    };
+                    String description = original.desc() + " — تطور " + rank
+                            + ": تأثير إضافي مميز لعنصر " + e.ar;
+                    progression[i] = new Ab(prefix + " · " + original.name(), description,
+                            original.cost() * (1.0 + rank * 0.15), baseIndex, rank);
+                }
+            }
+            ABS.put(e, progression);
         }
     }
 
@@ -158,10 +191,10 @@ final class PowerMode implements Listener {
     private final YamlConfiguration store;
     private final Set<UUID> active = new HashSet<>();
     private final Map<UUID, Integer> selected = new HashMap<>();
-    private final Map<String, Long> cds = new HashMap<>();
-    private final Map<UUID, Long> lastUse = new HashMap<>();
-    private final Map<UUID, Long> strikeCd = new HashMap<>();
     private final Set<UUID> busy = new HashSet<>();
+    private final Map<UUID, BukkitRunnable> flights = new HashMap<>();
+    private record AffinityCache(long checkedAt, Element element, boolean empowered) {}
+    private final Map<String, AffinityCache> affinityCache = new HashMap<>();
     private long tick = 0;
 
     PowerMode(Magic magic) {
@@ -182,6 +215,10 @@ final class PowerMode implements Listener {
     }
 
     void shutdown() {
+        for (UUID u : new ArrayList<>(flights.keySet())) {
+            Player player = org.bukkit.Bukkit.getPlayer(u);
+            stopFlight(player, false, null);
+        }
         for (UUID u : new ArrayList<>(active)) {
             Player p = org.bukkit.Bukkit.getPlayer(u);
             if (p != null) disable(p, true);
@@ -281,6 +318,7 @@ final class PowerMode implements Listener {
 
     private void disable(Player p, boolean silent) {
         UUID id = p.getUniqueId();
+        stopFlight(p, false, null);
         if (!active.remove(id)) return;
         restoreOffhand(p);
         if (!silent) {
@@ -311,25 +349,79 @@ final class PowerMode implements Listener {
     }
 
     private double cost(Element el, int idx) {
-        List<Double> l = magic.getConfig().getDoubleList("power.costs." + el.name());
-        double base = l.size() > idx ? l.get(idx) : ABS.get(el)[idx].cost();
+        Ab ability = ABS.get(el)[idx];
+        int baseIndex = ability.baseIndex();
+        List<Double> costs = magic.getConfig().getDoubleList("power.costs." + el.name());
+        double base = costs.size() > baseIndex ? costs.get(baseIndex) : ability.cost();
+        if (ability.evolutionRank() > 0) base *= (1.0 + ability.evolutionRank() * 0.15);
+        if (el == Element.FIRE && baseIndex == 2)
+            base = magic.getConfig().getDouble("flight.fire.activation-cost", 4.0);
+        if (el == Element.WIND && baseIndex == 3)
+            base = magic.getConfig().getDouble("flight.wind.activation-cost", 0.5);
         return Math.max(0, base * magic.getConfig().getDouble("power.cost-multiplier", 1.0));
-    }
-
-    private int cooldown(Element el, int idx) {
-        List<Integer> l = magic.getConfig().getIntegerList("power.cooldowns." + el.name());
-        return l.size() > idx ? l.get(idx) : ABS.get(el)[idx].cd();
     }
 
     void useSelected(Player p) { cast(p); }
 
+    private int moveUnlockMaxLevel() {
+        return Math.max(1, Math.min(50, magic.getConfig().getInt("progression.move-unlocks-max-level", 50)));
+    }
+
+    private int requiredAbilityLevel(Element element, int index) {
+        return Math.min(moveUnlockMaxLevel(), index + 1); // تقنية جديدة كل مستوى حتى الحد المحدد.
+    }
+
+    private boolean abilityUnlocked(Player player, Element element, int index) {
+        if (index < 0 || index >= ABS.get(element).length
+                || magic.levelOf(player) < requiredAbilityLevel(element, index)) return false;
+        if (element == Element.SHAPESHIFT) {
+            int formIndex = ABS.get(element)[index].baseIndex();
+            return magic.shapeshift != null && magic.shapeshift.hasForm(player, formIndex);
+        }
+        return true;
+    }
+
+    void onLevelUp(Player player, int oldLevel, int newLevel) {
+        Element element = magic.getEl(player);
+        if (element == null || newLevel <= oldLevel) return;
+        Ab[] abilities = ABS.get(element);
+        int unlockMax = moveUnlockMaxLevel();
+        for (int level = Math.max(1, oldLevel + 1); level <= Math.min(unlockMax, newLevel); level++) {
+            Ab unlocked = abilities[level - 1];
+            if (element == Element.SHAPESHIFT && magic.shapeshift != null
+                    && !magic.shapeshift.hasForm(player, unlocked.baseIndex())) {
+                player.sendMessage(Magic.c("§d✦ لفل " + level + " فتح تقنية جديدة: §f" + unlocked.name()
+                        + " §7— اقتل الكائن المرتبط بالشكل لاستخدامها."));
+            } else {
+                player.sendMessage(Magic.c("§6✦ حركة جديدة اتفتحت عند لفل " + level + "! §f" + unlocked.name()));
+            }
+            player.playSound(player.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 0.75f, 1.0f + level * 0.01f);
+        }
+        if (oldLevel < unlockMax && newLevel >= unlockMax) {
+            player.sendMessage(Magic.c("§d✦ وصلت لمرحلة إتقان الحركات! كل التقنيات المتاحة أصبحت مفتوحة؛ من بعد لفل " + unlockMax + " قوتك هي اللي هتزيد."));
+        }
+        int scaleStart = Math.max(unlockMax + 1, magic.getConfig().getInt("progression.power-scaling-start-level", 51));
+        int scaleStep = Math.max(1, magic.getConfig().getInt("progression.power-scaling-step-levels", 10));
+        if (newLevel >= scaleStart && (newLevel - scaleStart) % scaleStep == 0) {
+            player.sendMessage(Magic.c("§e✦ قوة العنصر زادت — §fلفل " + newLevel + " §7| مفيش حركات جديدة بعد لفل " + unlockMax + "."));
+        }
+    }
+
     void cycle(Player p, int dir) {
         Ab[] a = abs(p);
-        if (a == null) return;
-        int i = Math.floorMod(selected.getOrDefault(p.getUniqueId(), 0) + dir, a.length);
-        selected.put(p.getUniqueId(), i);
-        p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_CHIME, 0.7f, 0.8f + i * 0.3f);
-        showSelected(p);
+        Element element = magic.getEl(p);
+        if (a == null || element == null) return;
+        int current = selected.getOrDefault(p.getUniqueId(), 0);
+        for (int step = 1; step <= a.length; step++) {
+            int candidate = Math.floorMod(current + dir * step, a.length);
+            if (abilityUnlocked(p, element, candidate)) {
+                selected.put(p.getUniqueId(), candidate);
+                p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_CHIME, 0.7f, 0.8f + candidate * 0.3f);
+                showSelected(p);
+                return;
+            }
+        }
+        p.sendActionBar(Magic.c("§cارفع مستوى العنصر لفتح حركات جديدة."));
     }
 
     /** يظهر اسم القدرة المختارة في نص الشاشة نص ثانية ثم يختفي (الـ Action Bar متسيب لـ AuraSkills). */
@@ -339,11 +431,11 @@ final class PowerMode implements Listener {
         UUID id = p.getUniqueId();
         int i = selected.getOrDefault(id, 0);
         Ab ab = ABS.get(el)[i];
-        long left = cds.getOrDefault(id + ":" + el + i, 0L) - System.currentTimeMillis();
-        String state = left > 0 ? "§c" + (left / 1000 + 1) + "ث" : "§aجاهزة";
+        String manaLabel = p.isOp() ? "§dمجاني (OP)" : "§b" + trim(cost(el, i)) + " مانا";
+        String evolution = ab.evolutionRank() == 0 ? "" : " §8| §dتطور " + ab.evolutionRank() + "/4";
         p.showTitle(Title.title(
                 Magic.c(el.color + "✦ " + ab.name() + " ✦"),
-                Magic.c("§7[" + (i + 1) + "/" + ABS.get(el).length + "] §8| §b" + trim(cost(el, i)) + " مانا §8| " + state),
+                Magic.c("§7[" + (i + 1) + "/50] §8| " + manaLabel + " §8| §aبدون كولداون" + evolution + environmentBonusText(p)),
                 Title.Times.times(Duration.ZERO, Duration.ofMillis(500), Duration.ZERO)));
     }
 
@@ -362,8 +454,8 @@ final class PowerMode implements Listener {
             if (!isCore(p.getInventory().getItemInOffHand())) p.getInventory().setItemInOffHand(makeCore(el));
             Fx.aura(p, el, tick);
             if (el == Element.SHADOW && lightAt(p.getLocation().getBlock()) <= 4) {
-                p.addPotionEffect(new PotionEffect(PotionEffectType.STRENGTH, 30, 0, true, false));
-                p.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, 30, 0, true, false));
+                effect(p, p, PotionEffectType.STRENGTH, 30, 0);
+                effect(p, p, PotionEffectType.SPEED, 30, 0);
             }
         }
     }
@@ -395,7 +487,7 @@ final class PowerMode implements Listener {
     @EventHandler(priority = EventPriority.HIGH)
     public void onUse(PlayerInteractEvent e) {
         Player p = e.getPlayer();
-        if (!isActive(p)) return;
+        if (!isActive(p) || e.getHand() != EquipmentSlot.HAND) return;
         Action a = e.getAction();
         if (a != Action.RIGHT_CLICK_AIR && a != Action.RIGHT_CLICK_BLOCK) return;
         if (a == Action.RIGHT_CLICK_BLOCK && e.getClickedBlock() != null
@@ -407,16 +499,12 @@ final class PowerMode implements Listener {
     @EventHandler(priority = EventPriority.HIGH)
     public void onUseEntity(PlayerInteractEntityEvent e) {
         Player p = e.getPlayer();
-        if (!isActive(p)) return;
+        if (!isActive(p) || e.getHand() != EquipmentSlot.HAND) return;
         e.setCancelled(true);
         trigger(p);
     }
 
     private void trigger(Player p) {
-        long now = System.currentTimeMillis();
-        Long last = lastUse.get(p.getUniqueId());
-        if (last != null && now - last < 150L) return; // نفس الكليك جاي من اليدين
-        lastUse.put(p.getUniqueId(), now);
         cast(p);
     }
 
@@ -427,14 +515,10 @@ final class PowerMode implements Listener {
         if (e.getCause() != EntityDamageByEntityEvent.DamageCause.ENTITY_ATTACK) return;
         Element el = magic.getEl(p);
         if (el == null) return;
-        long now = System.currentTimeMillis();
-        if (strikeCd.getOrDefault(p.getUniqueId(), 0L) > now) return;
         double cost = magic.getConfig().getDouble("power.strike-mana", 1.5);
         if (!magic.advanced.spendMana(p, cost)) return;
-        strikeCd.put(p.getUniqueId(), now + magic.getConfig().getLong("power.strike-cooldown-ms", 700L));
         int t = magic.unarmedTier(p);
-        double bonus = 1.0 + 0.3 * t;
-        if (el == Element.SHADOW) bonus *= shadowMult(p);
+        double bonus = (1.0 + 0.3 * t) * environmentMultiplier(p);
         e.setDamage(e.getDamage() + bonus);
         strikeEffect(p, el, target, t);
     }
@@ -464,6 +548,7 @@ final class PowerMode implements Listener {
     @EventHandler(priority = EventPriority.LOWEST)
     public void onDeath(PlayerDeathEvent e) {
         Player p = e.getEntity();
+        stopFlight(p, false, null);
         if (!isActive(p)) {
             e.getDrops().removeIf(this::isCore);
             return;
@@ -485,8 +570,9 @@ final class PowerMode implements Listener {
     @EventHandler
     public void onQuit(PlayerQuitEvent e) {
         disable(e.getPlayer(), true);
-        lastUse.remove(e.getPlayer().getUniqueId());
         selected.remove(e.getPlayer().getUniqueId());
+        String cachePrefix = e.getPlayer().getUniqueId().toString() + ":";
+        affinityCache.keySet().removeIf(key -> key.startsWith(cachePrefix));
     }
 
     @EventHandler
@@ -525,10 +611,20 @@ final class PowerMode implements Listener {
         p.sendMessage(Magic.c("§6✦ قدرات " + el.color + el.ar));
         Ab[] a = ABS.get(el);
         for (int i = 0; i < a.length; i++) {
-            String lock = el == Element.SHAPESHIFT && (magic.shapeshift == null || !magic.shapeshift.hasForm(p, i))
-                    ? "§c[مقفولة] " : "§a[مفتوحة] ";
-            p.sendMessage(Magic.c((el == Element.SHAPESHIFT ? lock : "") + el.color + (i + 1) + ". " + a[i].name() + " §8| §b" + trim(cost(el, i))
-                    + " مانا §8| §7" + cooldown(el, i) + "ث §8— §7" + a[i].desc()));
+            boolean unlocked = abilityUnlocked(p, el, i);
+            String lock;
+            if (unlocked) {
+                lock = "§a[مفتوحة] ";
+            } else if (el == Element.SHAPESHIFT && magic.levelOf(p) >= requiredAbilityLevel(el, i)
+                    && magic.shapeshift != null && !magic.shapeshift.hasForm(p, a[i].baseIndex())) {
+                lock = "§6[اقتل الكائن لفتح الشكل] ";
+            } else {
+                lock = "§c[مقفولة حتى لفل " + (i + 1) + "] ";
+            }
+            String manaLabel = p.isOp() ? "§dمجاني (OP)" : "§b" + trim(cost(el, i)) + " مانا";
+            String evolution = a[i].evolutionRank() == 0 ? "" : " §d(تطور " + a[i].evolutionRank() + "/4)";
+            p.sendMessage(Magic.c(lock + el.color + (i + 1) + ". " + a[i].name() + evolution + " §8| " + manaLabel
+                    + " §8| §aبدون كولداون §8— §7" + a[i].desc()));
         }
         if (el == Element.SHAPESHIFT && magic.shapeshift != null) {
             p.sendMessage(Magic.c("§7سجل الأشكال: §e/gmagic forms"));
@@ -541,17 +637,19 @@ final class PowerMode implements Listener {
         if (el == null) return;
         UUID id = p.getUniqueId();
         int idx = selected.getOrDefault(id, 0);
-        String key = id + ":" + el + idx;
-        long now = System.currentTimeMillis();
-        long ready = cds.getOrDefault(key, 0L);
-        Ab ab = ABS.get(el)[idx];
-        if (ready > now) {
-            p.sendActionBar(Magic.c("§c" + ab.name() + " جاهزة بعد " + ((ready - now) / 1000 + 1) + " ث"));
+        if (!abilityUnlocked(p, el, idx)) {
+            int required = requiredAbilityLevel(el, idx);
+            if (el == Element.SHAPESHIFT && magic.shapeshift != null
+                    && magic.levelOf(p) >= required && !magic.shapeshift.hasForm(p, ABS.get(el)[idx].baseIndex())) {
+                p.sendMessage(Magic.c("§cلازم تتعلم الشكل المرتبط بالحركة بقتل الكائن الأول."));
+            } else {
+                p.sendMessage(Magic.c("§cالحركة دي لسه مقفولة. محتاج توصل لفل §e" + required + " §cفي عنصر " + el.ar));
+            }
             return;
         }
+        Ab ab = ABS.get(el)[idx];
         double cost = cost(el, idx);
         if (!magic.advanced.spendMana(p, cost)) return;
-        cds.put(key, now + cooldown(el, idx) * 1000L);
         int t = magic.unarmedTier(p);
         boolean ok;
         try {
@@ -562,32 +660,266 @@ final class PowerMode implements Listener {
         }
         if (!ok) {
             magic.advanced.giveMana(p, cost);
-            cds.remove(key);
             return;
         }
         magic.updateTrial(p, Magic.TrialKind.ELEMENT_MASTERY, 1);
         magic.advanced.noteCast(p);
-        p.sendActionBar(Magic.c(el.color + "✦ " + ab.name()));
+        p.sendActionBar(Magic.c(el.color + "✦ " + ab.name() + environmentBonusText(p)));
     }
 
     private boolean run(Player p, Element el, int idx, int t) {
-        if (el == Element.SHAPESHIFT) return magic.shapeshift != null && magic.shapeshift.castForm(p, idx, t);
-        if (idx >= 3) return moves.run(p, el, idx - 3, t);
-        return switch (el) {
-            case FIRE -> switch (idx) { case 0 -> fireAura(p, t); case 1 -> fireball(p, t); default -> fireFlight(p, t); };
-            case WATER -> switch (idx) { case 0 -> tide(p, t); case 1 -> bubble(p, t); default -> swim(p, t); };
-            case EARTH -> switch (idx) { case 0 -> spikes(p, t); case 1 -> earthArmor(p, t); default -> quake(p, t); };
-            case WIND -> switch (idx) { case 0 -> gust(p, t); case 1 -> windLeap(p, t); default -> tornado(p, t); };
-            case LIGHTNING -> switch (idx) { case 0 -> spark(p, t); case 1 -> thunderDash(p, t); default -> staticField(p, t); };
-            case SHADOW -> switch (idx) { case 0 -> shadowStep(p, t); case 1 -> darkStrike(p, t); default -> nightCloak(p, t); };
-            case ICE -> switch (idx) { case 0 -> frostNova(p, t); case 1 -> iceVolley(p, t); default -> blizzard(p, t); };
-            case METAL -> switch (idx) { case 0 -> steelGuard(p, t); case 1 -> magnet(p, t); default -> ironFist(p, t); };
-            case NATURE -> switch (idx) { case 0 -> rootBind(p, t); case 1 -> bloom(p, t); default -> thornBurst(p, t); };
-            case LIGHT -> switch (idx) { case 0 -> flash(p, t); case 1 -> lightBeam(p, t); default -> blessing(p, t); };
-            case SOUND -> switch (idx) { case 0 -> shockwave(p, t); case 1 -> sonicBoom(p, t); default -> echo(p, t); };
-            case CRYSTAL -> switch (idx) { case 0 -> shardVolley(p, t); case 1 -> prismShield(p, t); default -> crystalCage(p, t); };
-            case SHAPESHIFT -> false;
-        };
+        Ab ability = ABS.get(el)[idx];
+        int baseIndex = ability.baseIndex();
+        boolean success;
+        if (el == Element.SHAPESHIFT) {
+            success = magic.shapeshift != null && magic.shapeshift.castForm(p, baseIndex, t);
+        } else if (baseIndex >= 3) {
+            success = moves.run(p, el, baseIndex - 3, t);
+        } else {
+            success = switch (el) {
+                case FIRE -> switch (baseIndex) { case 0 -> fireAura(p, t); case 1 -> fireball(p, t); default -> fireFlight(p, t); };
+                case WATER -> switch (baseIndex) { case 0 -> tide(p, t); case 1 -> bubble(p, t); default -> swim(p, t); };
+                case EARTH -> switch (baseIndex) { case 0 -> spikes(p, t); case 1 -> earthArmor(p, t); default -> quake(p, t); };
+                case WIND -> switch (baseIndex) { case 0 -> gust(p, t); case 1 -> windLeap(p, t); default -> tornado(p, t); };
+                case LIGHTNING -> switch (baseIndex) { case 0 -> spark(p, t); case 1 -> thunderDash(p, t); default -> staticField(p, t); };
+                case SHADOW -> switch (baseIndex) { case 0 -> shadowStep(p, t); case 1 -> darkStrike(p, t); default -> nightCloak(p, t); };
+                case ICE -> switch (baseIndex) { case 0 -> frostNova(p, t); case 1 -> iceVolley(p, t); default -> blizzard(p, t); };
+                case METAL -> switch (baseIndex) { case 0 -> steelGuard(p, t); case 1 -> magnet(p, t); default -> ironFist(p, t); };
+                case NATURE -> switch (baseIndex) { case 0 -> rootBind(p, t); case 1 -> bloom(p, t); default -> thornBurst(p, t); };
+                case LIGHT -> switch (baseIndex) { case 0 -> flash(p, t); case 1 -> lightBeam(p, t); default -> blessing(p, t); };
+                case SOUND -> switch (baseIndex) { case 0 -> shockwave(p, t); case 1 -> sonicBoom(p, t); default -> echo(p, t); };
+                case CRYSTAL -> switch (baseIndex) { case 0 -> shardVolley(p, t); case 1 -> prismShield(p, t); default -> crystalCage(p, t); };
+                case SHAPESHIFT -> false;
+            };
+        }
+        if (success && ability.evolutionRank() > 0)
+            applyEvolutionTechnique(p, el, baseIndex, ability.evolutionRank(), t);
+        return success;
+    }
+
+    /** Each evolution rank adds a distinct elemental technique on top of its original move. */
+    private void applyEvolutionTechnique(Player p, Element el, int baseIndex, int rank, int tier) {
+        Location center = p.getLocation().clone().add(0, 0.25, 0);
+        World world = p.getWorld();
+        double r = 2.4 + rank * 0.9;
+        switch (el) {
+            case FIRE -> {
+                switch (rank) {
+                    case 1 -> {
+                        ring(center, r, 28, l -> world.spawnParticle(Particle.FLAME, l, 2, 0.08, 0.12, 0.08, 0.01));
+                        for (LivingEntity target : foesAt(p, center, r)) { target.setFireTicks(environmentDuration(p, el, 60)); hurt(p, target, 1.8 + tier); }
+                    }
+                    case 2 -> {
+                        Vector dash = dir(p).multiply(0.48);
+                        applyVelocity(p, p, dash.setY(Math.max(0.12, dash.getY() + 0.12)));
+                        for (LivingEntity target : cone(p, 6.5, 0.35)) { target.setFireTicks(environmentDuration(p, el, 80)); hurt(p, target, 2.5 + tier); }
+                    }
+                    case 3 -> {
+                        effect(p, p, PotionEffectType.FIRE_RESISTANCE, 120, 0);
+                        effect(p, p, PotionEffectType.STRENGTH, 80, 0);
+                        fx(p.getLocation().add(0, 1, 0), Particle.FLAME, 55, 0.8, 0.7);
+                    }
+                    default -> {
+                        ring(center, r + 2, 56, l -> world.spawnParticle(Particle.LAVA, l, 1, 0.08, 0.08, 0.08, 0));
+                        for (LivingEntity target : foesAt(p, center, r + 2)) { target.setFireTicks(environmentDuration(p, el, 120)); hurt(p, target, 5.0 + tier); magic.push(p, target, center, 0.9, 0.45); }
+                    }
+                }
+            }
+            case WATER -> {
+                switch (rank) {
+                    case 1 -> { heal(p, 2.0 + rank); fx(center, Particle.SPLASH, 45, 1.2, 0.25); }
+                    case 2 -> { for (LivingEntity target : foesAt(p, center, r + 1)) { effect(p, target, PotionEffectType.SLOWNESS, 65, 2); hurt(p, target, 2.2 + tier); } }
+                    case 3 -> { effect(p, p, PotionEffectType.RESISTANCE, 100, 0); effect(p, p, PotionEffectType.REGENERATION, 100, 1); effect(p, p, PotionEffectType.WATER_BREATHING, 180, 0); }
+                    default -> { fx(center, Particle.SPLASH, 90, 2.8, 0.45); for (LivingEntity target : foesAt(p, center, r + 2)) { hurt(p, target, 4.5 + tier); magic.push(p, target, center, 0.8, 0.5); } heal(p, 4.0); }
+                }
+            }
+            case EARTH -> {
+                switch (rank) {
+                    case 1 -> { effect(p, p, PotionEffectType.RESISTANCE, 100, 0); ring(center, r, 28, l -> world.spawnParticle(Particle.BLOCK, l, 3, 0.1, 0.3, 0.1, 0.04, Material.STONE.createBlockData())); }
+                    case 2 -> { for (LivingEntity target : foesAt(p, center, r + 1)) { hurt(p, target, 3 + tier); magic.push(p, target, center, 0.5, 0.7); } }
+                    case 3 -> { for (LivingEntity target : cone(p, 9, 0.2)) { effect(p, target, PotionEffectType.SLOWNESS, 80, 2); hurt(p, target, 4 + tier); } }
+                    default -> { ring(center, r + 2, 48, l -> world.spawnParticle(Particle.BLOCK, l, 4, 0.1, 0.2, 0.1, 0.05, Material.DEEPSLATE.createBlockData())); for (LivingEntity target : foesAt(p, center, r + 2)) { hurt(p, target, 5 + tier); magic.push(p, target, center, 1.0, 0.8); } }
+                }
+            }
+            case WIND -> {
+                switch (rank) {
+                    case 1 -> { fx(center, Particle.CLOUD, 65, 1.2, 0.25); for (LivingEntity target : foesAt(p, center, r + 1)) magic.push(p, target, center, 0.8, 0.5); }
+                    case 2 -> { for (LivingEntity target : cone(p, 10, 0.15)) { effect(p, target, PotionEffectType.LEVITATION, 18, 0); hurt(p, target, 2 + tier); } }
+                    case 3 -> { Vector dash = dir(p).multiply(0.72); applyVelocity(p, p, dash.setY(Math.max(0.2, dash.getY() + 0.15))); effect(p, p, PotionEffectType.SLOW_FALLING, 80, 0); }
+                    default -> { for (LivingEntity target : foesAt(p, center, r + 2)) { Vector pull = center.toVector().subtract(target.getLocation().toVector()).normalize().multiply(0.65).setY(0.42); applyVelocity(p, target, pull); hurt(p, target, 4 + tier); } fx(center, Particle.CLOUD, 110, 2.4, 0.35); }
+                }
+            }
+            case LIGHTNING -> {
+                switch (rank) {
+                    case 1 -> { LivingEntity target = firstTarget(p, 18); if (target != null) { world.strikeLightningEffect(target.getLocation()); hurt(p, target, 3.5 + tier); } }
+                    case 2 -> { effect(p, p, PotionEffectType.SPEED, 100, 2); effect(p, p, PotionEffectType.HASTE, 100, 1); applyVelocity(p, p, dir(p).multiply(0.7)); }
+                    case 3 -> { LivingEntity target = firstTarget(p, 18); if (target != null) for (LivingEntity other : foesAt(p, target.getLocation(), 5)) { world.spawnParticle(Particle.ELECTRIC_SPARK, other.getLocation().add(0, 1, 0), 20, 0.25, 0.5, 0.25, 0.1); hurt(p, other, 3 + tier); } }
+                    default -> { ring(center, r + 1, 44, l -> world.spawnParticle(Particle.ELECTRIC_SPARK, l, 3, 0.1, 0.2, 0.1, 0.1)); for (LivingEntity target : foesAt(p, center, r + 1)) { world.strikeLightningEffect(target.getLocation()); hurt(p, target, 5 + tier); } }
+                }
+            }
+            case SHADOW -> {
+                switch (rank) {
+                    case 1 -> { effect(p, p, PotionEffectType.INVISIBILITY, 70, 0); effect(p, p, PotionEffectType.SPEED, 70, 1); fx(center, Particle.PORTAL, 55, 0.8, 0.3); }
+                    case 2 -> { LivingEntity target = firstTarget(p, 14); if (target != null) { effect(p, target, PotionEffectType.BLINDNESS, 70, 0); effect(p, target, PotionEffectType.WITHER, 70, 0); hurt(p, target, 3 + tier); } }
+                    case 3 -> { for (LivingEntity target : foesAt(p, center, r + 1)) { effect(p, target, PotionEffectType.DARKNESS, 80, 0); effect(p, target, PotionEffectType.SLOWNESS, 60, 1); } }
+                    default -> { ring(center, r + 2, 48, l -> world.spawnParticle(Particle.PORTAL, l, 4, 0.1, 0.35, 0.1, 0.04)); for (LivingEntity target : foesAt(p, center, r + 2)) { effect(p, target, PotionEffectType.WITHER, 100, 1); hurt(p, target, 5 + tier); } }
+                }
+            }
+            case ICE -> {
+                switch (rank) {
+                    case 1 -> { for (LivingEntity target : foesAt(p, center, r)) { target.setFreezeTicks(Math.min(target.getMaxFreezeTicks(), target.getFreezeTicks() + 70)); effect(p, target, PotionEffectType.SLOWNESS, 65, 2); } fx(center, Particle.SNOWFLAKE, 45, 1.0, 0.15); }
+                    case 2 -> { LivingEntity target = firstTarget(p, 18); if (target != null) { hurt(p, target, 3 + tier); target.setFreezeTicks(Math.min(target.getMaxFreezeTicks(), target.getFreezeTicks() + 120)); } }
+                    case 3 -> { effect(p, p, PotionEffectType.RESISTANCE, 100, 0); effect(p, p, PotionEffectType.SLOW_FALLING, 120, 0); fx(center, Particle.SNOWFLAKE, 75, 1.1, 0.2); }
+                    default -> { for (LivingEntity target : foesAt(p, center, r + 2)) { target.setFreezeTicks(Math.min(target.getMaxFreezeTicks(), target.getFreezeTicks() + 180)); effect(p, target, PotionEffectType.SLOWNESS, 100, 3); hurt(p, target, 5 + tier); } fx(center, Particle.SNOWFLAKE, 130, 2.2, 0.25); }
+                }
+            }
+            case METAL -> {
+                switch (rank) {
+                    case 1 -> { effect(p, p, PotionEffectType.RESISTANCE, 100, 0); effect(p, p, PotionEffectType.ABSORPTION, 100, 1); fx(center, Particle.CRIT, 55, 0.7, 0.2); }
+                    case 2 -> { for (LivingEntity target : foesAt(p, center, r + 1)) { Vector pull = center.toVector().subtract(target.getLocation().toVector()).normalize().multiply(0.6).setY(0.15); applyVelocity(p, target, pull); } }
+                    case 3 -> { for (LivingEntity target : foesAt(p, center, r + 1)) { hurt(p, target, 4 + tier); magic.push(p, target, center, 0.9, 0.55); } }
+                    default -> { effect(p, p, PotionEffectType.RESISTANCE, 120, 1); ring(center, r + 2, 50, l -> world.spawnParticle(Particle.CRIT, l, 4, 0.1, 0.2, 0.1, 0.02)); for (LivingEntity target : foesAt(p, center, r + 2)) hurt(p, target, 5 + tier); }
+                }
+            }
+            case NATURE -> {
+                switch (rank) {
+                    case 1 -> { effect(p, p, PotionEffectType.REGENERATION, 120, 1); heal(p, 2.5); fx(center, Particle.HAPPY_VILLAGER, 55, 0.9, 0.2); }
+                    case 2 -> { for (LivingEntity target : foesAt(p, center, r + 1)) { effect(p, target, PotionEffectType.POISON, 80, 0); effect(p, target, PotionEffectType.SLOWNESS, 80, 2); } }
+                    case 3 -> { effect(p, p, PotionEffectType.SPEED, 120, 1); for (LivingEntity target : foesAt(p, center, r + 1)) { effect(p, target, PotionEffectType.SLOWNESS, 70, 3); hurt(p, target, 3 + tier); } }
+                    default -> { effect(p, p, PotionEffectType.REGENERATION, 180, 1); heal(p, 5); for (LivingEntity target : foesAt(p, center, r + 2)) { effect(p, target, PotionEffectType.POISON, 120, 1); hurt(p, target, 5 + tier); } fx(center, Particle.HAPPY_VILLAGER, 100, 2.0, 0.25); }
+                }
+            }
+            case LIGHT -> {
+                switch (rank) {
+                    case 1 -> { effect(p, p, PotionEffectType.SPEED, 100, 1); for (LivingEntity target : foesAt(p, center, r + 1)) effect(p, target, PotionEffectType.GLOWING, 120, 0); fx(center, Particle.END_ROD, 50, 0.8, 0.3); }
+                    case 2 -> { for (LivingEntity target : cone(p, 10, 0.2)) effect(p, target, PotionEffectType.BLINDNESS, 50, 0); fx(p.getEyeLocation(), Particle.FLASH, 1, 0, 0); }
+                    case 3 -> { heal(p, 4); effect(p, p, PotionEffectType.REGENERATION, 120, 1); effect(p, p, PotionEffectType.RESISTANCE, 80, 0); }
+                    default -> { LivingEntity target = firstTarget(p, 24); if (target != null) { hurt(p, target, 7 + tier); fx(target.getLocation().add(0, 1, 0), Particle.END_ROD, 80, 0.4, 0.3); } }
+                }
+            }
+            case SOUND -> {
+                switch (rank) {
+                    case 1 -> { for (LivingEntity target : foesAt(p, center, r + 1)) magic.push(p, target, center, 0.8, 0.35); fx(center, Particle.NOTE, 70, 1.0, 0.4); }
+                    case 2 -> { for (LivingEntity target : cone(p, 12, 0.1)) { effect(p, target, PotionEffectType.NAUSEA, 90, 0); effect(p, target, PotionEffectType.SLOWNESS, 70, 1); } }
+                    case 3 -> { for (LivingEntity target : foesAt(p, center, r + 2)) effect(p, target, PotionEffectType.GLOWING, 120, 0); fx(center, Particle.NOTE, 100, 1.8, 0.5); }
+                    default -> { snd(center, Sound.ENTITY_WARDEN_SONIC_BOOM, 0.8f); for (LivingEntity target : cone(p, 18, 0.0)) { hurt(p, target, 6 + tier); magic.push(p, target, center, 1.1, 0.35); } }
+                }
+            }
+            case CRYSTAL -> {
+                switch (rank) {
+                    case 1 -> { effect(p, p, PotionEffectType.ABSORPTION, 140, 1); fx(center, Particle.END_ROD, 55, 0.8, 0.3); }
+                    case 2 -> { LivingEntity target = firstTarget(p, 20); if (target != null) { hurt(p, target, 4 + tier); fx(target.getLocation(), Particle.CRIT, 65, 0.5, 0.3); } }
+                    case 3 -> { effect(p, p, PotionEffectType.RESISTANCE, 100, 0); effect(p, p, PotionEffectType.ABSORPTION, 160, 2); ring(center, r, 28, l -> world.spawnParticle(Particle.END_ROD, l, 2, 0.1, 0.4, 0.1, 0.02)); }
+                    default -> { ring(center, r + 2, 52, l -> world.spawnParticle(Particle.END_ROD, l, 3, 0.08, 0.2, 0.08, 0.02)); for (LivingEntity target : foesAt(p, center, r + 2)) { hurt(p, target, 6 + tier); effect(p, target, PotionEffectType.SLOWNESS, 90, 2); } }
+                }
+            }
+            case SHAPESHIFT -> evolveForm(p, baseIndex, rank, tier, center, r);
+        }
+    }
+
+    private void evolveForm(Player p, int form, int rank, int tier, Location center, double radius) {
+        switch (form) {
+            case 0 -> { // Spider: خيوط وشبكات إضافية.
+                for (LivingEntity target : foesAt(p, center, radius + rank)) { effect(p, target, PotionEffectType.SLOWNESS, 50 + rank * 20, rank); }
+                fx(center, Particle.CLOUD, 30 + rank * 15, 0.9 + rank * 0.2, 0.1);
+            }
+            case 1 -> { // Creeper: تفريغ طاقة بلا تكسير بلوكات.
+                ring(center, radius + rank, 28 + rank * 8, l -> p.getWorld().spawnParticle(Particle.EXPLOSION, l, 1, 0, 0, 0));
+                for (LivingEntity target : foesAt(p, center, radius + rank)) { hurt(p, target, 2 + rank + tier); magic.push(p, target, center, 0.8 + rank * 0.12, 0.35); }
+            }
+            case 2 -> { // Skeleton: وابل سهام إضافي.
+                Vector d = dir(p);
+                for (int i = 0; i < rank + 1; i++) {
+                    org.bukkit.entity.Arrow arrow = p.launchProjectile(org.bukkit.entity.Arrow.class, d.clone().rotateAroundY(Math.toRadians((i - rank / 2.0) * 8)).multiply(1.1));
+                    arrow.setDamage(2.0 + rank + tier * 0.3);
+                }
+            }
+            case 3 -> { // Blaze: جمر يدور حول اللاعب.
+                for (LivingEntity target : foesAt(p, center, radius + rank)) { target.setFireTicks(environmentDuration(p, Element.FIRE, 60 + rank * 20)); hurt(p, target, 2 + rank); }
+                fx(center, Particle.FLAME, 55 + rank * 20, 1.0 + rank * 0.3, 0.12);
+            }
+            case 4 -> { // Ghast: قذيفة انفجارية متزايدة.
+                LivingEntity target = firstTarget(p, 20);
+                if (target != null) { hurt(p, target, 4 + rank * 2 + tier); magic.push(p, target, center, 1.0, 0.6); fx(target.getLocation(), Particle.EXPLOSION, 1, 0, 0); }
+            }
+            case 5 -> { // Warden: موجة صوتية ثقيلة.
+                snd(center, Sound.ENTITY_WARDEN_SONIC_BOOM, 0.7f);
+                for (LivingEntity target : cone(p, 12 + rank * 2, 0.05)) { hurt(p, target, 3 + rank * 1.5 + tier); effect(p, target, PotionEffectType.GLOWING, 100, 0); }
+            }
+            case 6 -> { // Iron Golem: دفاع وضربة ارتدادية.
+                effect(p, p, PotionEffectType.RESISTANCE, 60 + rank * 30, 0);
+                for (LivingEntity target : foesAt(p, center, radius + rank)) { hurt(p, target, 2 + rank + tier); magic.push(p, target, center, 0.9 + rank * 0.1, 0.5); }
+            }
+            case 7 -> { // Evoker: أنياب على شكل صفوف.
+                for (int row = 1; row <= rank + 1; row++) {
+                    Location at = p.getLocation().add(dir(p).multiply(row * 1.5));
+                    p.getWorld().spawn(at, org.bukkit.entity.EvokerFangs.class, f -> { f.setOwner(p); f.setSilent(true); });
+                }
+            }
+            case 8 -> { // Ender Dragon: زفير تنين متوسع.
+                fx(p.getEyeLocation().add(dir(p).multiply(3)), Particle.DRAGON_BREATH, 80 + rank * 20, 0.9 + rank * 0.2, 0.08);
+                for (LivingEntity target : cone(p, 10 + rank * 2, 0.15)) { hurt(p, target, 4 + rank * 1.5 + tier); effect(p, target, PotionEffectType.WITHER, 50 + rank * 20, 0); }
+            }
+            default -> { // Enderman: انتقال وظل.
+                LivingEntity target = firstTarget(p, 16);
+                if (target != null) { Vector back = target.getLocation().getDirection().setY(0).normalize().multiply(-1.4); Location dest = target.getLocation().add(back); dest.setYaw(p.getLocation().getYaw()); dest.setPitch(p.getLocation().getPitch()); p.teleport(dest); hurt(p, target, 3 + rank * 2 + tier); }
+                fx(center, Particle.PORTAL, 45 + rank * 15, 0.9, 0.2);
+            }
+        }
+    }
+
+    // ------------------------------------------------------------ environmental affinity
+    boolean isEmpoweredByEnvironment(Player p) {
+        return isEmpoweredByEnvironment(p, magic.getEl(p));
+    }
+
+    boolean isEmpoweredByEnvironment(Player p, Element el) {
+        if (p == null || el == null || !p.isOnline()
+                || !magic.getConfig().getBoolean("environmental-bonus.enabled", true)) return false;
+        String cacheKey = p.getUniqueId() + ":" + el.name();
+        long now = System.currentTimeMillis();
+        AffinityCache cached = affinityCache.get(cacheKey);
+        long cacheMs = Math.max(0L, magic.getConfig().getLong("environmental-bonus.cache-ms", 500L));
+        if (cached != null && now - cached.checkedAt() <= cacheMs) return cached.empowered();
+        boolean empowered = ElementAffinity.isEmpowered(p, el);
+        affinityCache.put(cacheKey, new AffinityCache(now, el, empowered));
+        return empowered;
+    }
+
+    double environmentMultiplier(Player p) {
+        return environmentMultiplier(p, magic.getEl(p));
+    }
+
+    double environmentMultiplier(Player p, Element el) {
+        if (el == null || !isEmpoweredByEnvironment(p, el)) return 1.0;
+        double fallback = magic.getConfig().getDouble("environmental-bonus.default-multiplier", 1.25);
+        return Math.max(1.0, magic.getConfig().getDouble("environmental-bonus.multipliers." + el.name(), fallback));
+    }
+
+    int environmentDuration(Player p, int ticks) {
+        return environmentDuration(p, magic.getEl(p), ticks);
+    }
+
+    int environmentDuration(Player p, Element el, int ticks) {
+        return Math.max(1, (int) Math.round(ticks * environmentMultiplier(p, el)));
+    }
+
+    Vector environmentVector(Player p, Vector velocity) {
+        return environmentVector(p, magic.getEl(p), velocity);
+    }
+
+    Vector environmentVector(Player p, Element el, Vector velocity) {
+        return velocity.clone().multiply(environmentMultiplier(p, el));
+    }
+
+    String environmentBonusText(Player p) {
+        if (!isEmpoweredByEnvironment(p)) return "";
+        int percent = (int) Math.round((environmentMultiplier(p) - 1.0) * 100.0);
+        return " §6✦ تعزيز البيئة +" + percent + "%";
+    }
+
+    private void applyVelocity(Player caster, org.bukkit.entity.Entity target, Vector velocity) {
+        target.setVelocity(environmentVector(caster, velocity));
     }
 
     // ------------------------------------------------------------ helpers
@@ -645,11 +977,16 @@ final class PowerMode implements Listener {
         return p.getEyeLocation().add(dir(p).multiply(range));
     }
 
+    private void heal(Player player, double amount) {
+        if (player == null || player.isDead() || amount <= 0) return;
+        player.setHealth(Math.min(player.getMaxHealth(), player.getHealth() + amount * environmentMultiplier(player)));
+    }
+
     void hurt(Player p, LivingEntity t, double dmg) {
         if (t == p || t.isDead() || dmg <= 0) return;
         UUID u = p.getUniqueId();
         boolean was = !busy.add(u);
-        try { t.damage(dmg, p); }
+        try { t.damage(dmg * environmentMultiplier(p), p); }
         finally { if (!was) busy.remove(u); }
     }
 
@@ -672,6 +1009,10 @@ final class PowerMode implements Listener {
         e.addPotionEffect(new PotionEffect(type, ticks, amp, true, true));
     }
 
+    void effect(Player caster, LivingEntity target, PotionEffectType type, int ticks, int amp) {
+        effect(target, type, environmentDuration(caster, ticks), amp);
+    }
+
     double scale(int t) { return 1.0 + (t - 1) * 0.2; }
 
     /** إضاءة فعلية: بنقلل تأثير ضوء السما بالليل عشان الليل يتحسب ظلام. */
@@ -685,10 +1026,9 @@ final class PowerMode implements Listener {
     }
 
     private double shadowMult(Player p) {
-        int l = lightAt(p.getLocation().getBlock());
-        if (l <= 4) return 1.8;
-        if (l >= 12) return 0.65;
-        return 1.0;
+        // Darkness now grants the same configurable environmental boost as the other schools;
+        // bright conditions do not impose an extra penalty.
+        return magic.getEl(p) == Element.SHADOW ? environmentMultiplier(p) : 1.0;
     }
 
     void projectile(Player p, double speed, int maxTicks, double radius,
@@ -712,7 +1052,7 @@ final class PowerMode implements Listener {
 
     // ============================================================ FIRE
     private boolean fireAura(Player p, int t) {
-        effect(p, PotionEffectType.FIRE_RESISTANCE, 100, 0);
+        effect(p, p, PotionEffectType.FIRE_RESISTANCE, 100, 0);
         snd(p.getLocation(), Sound.ITEM_FIRECHARGE_USE, 0.8f);
         double r = 3.5 + 0.3 * t;
         new BukkitRunnable() {
@@ -725,7 +1065,7 @@ final class PowerMode implements Listener {
                 ring(c.clone().add(0, 0.2, 0), r * 0.6, 18, l -> w.spawnParticle(Particle.FLAME, l, 1, 0.05, 0.1, 0.05, 0.01));
                 w.spawnParticle(Particle.LAVA, c.clone().add(0, 0.5, 0), 3, r / 2, 0.3, r / 2, 0);
                 for (LivingEntity le : foes(p, r)) {
-                    le.setFireTicks(60 + 20 * t);
+                    le.setFireTicks(environmentDuration(p, Element.FIRE, 60 + 20 * t));
                     if (n % 2 == 0) hurt(p, le, 1.0 + 0.4 * t);
                 }
             }
@@ -745,36 +1085,147 @@ final class PowerMode implements Listener {
                     snd(l, Sound.ENTITY_GENERIC_EXPLODE, 1.2f);
                     for (LivingEntity le : foesAt(p, l, 3.5)) {
                         hurt(p, le, 5 + t * 1.2);
-                        le.setFireTicks(80 + 20 * t);
-                        magic.push(le, l, 0.6, 0.35);
+                        le.setFireTicks(environmentDuration(p, Element.FIRE, 80 + 20 * t));
+                        magic.push(p, le, l, 0.6, 0.35);
                     }
                 }, null);
         return true;
     }
 
     private boolean fireFlight(Player p, int t) {
-        effect(p, PotionEffectType.FIRE_RESISTANCE, 160, 0);
-        snd(p.getLocation(), Sound.ENTITY_FIREWORK_ROCKET_LAUNCH, 0.8f);
-        final int max = 40 + 6 * t; // حد أقصى ~3.5 ثانية عشان نظام منع الطيران
-        new BukkitRunnable() {
-            int n = 0;
+        return toggleFlight(p, Element.FIRE);
+    }
+
+    /** Toggle a persistent, mana-fed flight style. Wind is the economical form; fire is faster and hotter. */
+    boolean toggleFlight(Player p, Element element) {
+        UUID id = p.getUniqueId();
+        if (flights.containsKey(id)) {
+            stopFlight(p, true, "§7أوقفت الطيران. اضغط القدرة مرة ثانية للعودة.");
+            return false; // cast() يرجّع تكلفة التفعيل عند الإيقاف.
+        }
+        if (!isActive(p) || magic.getEl(p) != element) return false;
+        int minimum = element == Element.FIRE ? 3 : 4;
+        if (magic.levelOf(p) < minimum) {
+            p.sendActionBar(Magic.c("§cالطيران يفتح من لفل " + minimum));
+            return false;
+        }
+        effect(p, p, PotionEffectType.SLOW_FALLING, 80, 0);
+        snd(p.getLocation(), element == Element.FIRE ? Sound.ENTITY_FIREWORK_ROCKET_LAUNCH : Sound.ENTITY_ENDER_DRAGON_FLAP,
+                element == Element.FIRE ? 0.9f : 1.4f);
+        p.sendMessage(Magic.c(element == Element.WIND
+                ? "§f✦ بدأت طيران الرياح — حرّك نظرك للتحكم، Shift للإيقاف. المانا المستهلكة قليلة جدًا."
+                : "§c✦ بدأت طيران النار — اللهب يندفع من يديك لأسفل. حرّك نظرك للتحكم، Shift للإيقاف."));
+        BukkitRunnable task = new BukkitRunnable() {
+            int elapsed = 0;
+            int previousStage = 0;
             @Override public void run() {
-                if (!p.isOnline() || p.isDead() || n++ >= max || (n > 6 && p.isSneaking())) {
-                    if (p.isOnline()) effect(p, PotionEffectType.SLOW_FALLING, 80, 0);
-                    cancel();
+                if (!p.isOnline() || p.isDead() || !isActive(p) || magic.getEl(p) != element) {
+                    stopFlight(p, false, null);
                     return;
                 }
-                p.setVelocity(dir(p).multiply(0.95));
+                if (p.isSneaking()) {
+                    stopFlight(p, true, "§7تم إيقاف الطيران.");
+                    return;
+                }
+                if (element == Element.FIRE && p.isInWater()) {
+                    stopFlight(p, true, "§cانطفأ طيران النار بسبب الماء.");
+                    return;
+                }
+                int level = magic.levelOf(p);
+                int secondStage = Math.max(2, magic.getConfig().getInt("flight.second-stage-level", 15));
+                int thirdStage = Math.max(secondStage + 1, magic.getConfig().getInt("flight.third-stage-level", 30));
+                int stage = level >= thirdStage ? 3 : level >= secondStage ? 2 : 1;
+                if (stage != previousStage) {
+                    previousStage = stage;
+                    String stageText = element == Element.WIND
+                            ? (stage == 1 ? "الرياح بتدور حول جسمك" : stage == 2 ? "اندفاع الرياح بدأ يخرج من قدميك" : "وصلت لهيئة الرياح الكاملة")
+                            : (stage == 1 ? "نفث اللهب الأساسي من يديك" : stage == 2 ? "نفث ناري أقوى وأسرع" : "اندفاع اللهب المتقدم");
+                    p.sendMessage(Magic.c((element == Element.WIND ? "§f✦ " : "§c✦ ") + stageText + " §7(مرحلة " + stage + "/3)"));
+                }
+                int drainInterval = Math.max(5, magic.getConfig().getInt("flight." + element.name().toLowerCase(java.util.Locale.ROOT) + ".drain-interval-ticks",
+                        element == Element.WIND ? 40 : 20));
+                double drain = magic.getConfig().getDouble("flight." + element.name().toLowerCase(java.util.Locale.ROOT) + ".mana-per-drain",
+                        element == Element.WIND ? 0.15 : 0.8);
+                if (elapsed > 0 && elapsed % drainInterval == 0 && !magic.advanced.spendMana(p, drain)) {
+                    stopFlight(p, true, "§cماناك خلصت — الطيران اتوقف.");
+                    return;
+                }
+                double speed;
+                double lift;
+                if (element == Element.WIND) {
+                    speed = stage == 1 ? 0.46 : stage == 2 ? 0.64 : 0.82;
+                    lift = stage == 1 ? 0.11 : stage == 2 ? 0.15 : 0.18;
+                } else {
+                    speed = stage == 1 ? 0.72 : stage == 2 ? 0.94 : 1.18;
+                    lift = stage == 1 ? 0.16 : stage == 2 ? 0.21 : 0.26;
+                    effect(p, p, PotionEffectType.FIRE_RESISTANCE, 30, 0);
+                }
+                if (p.isSprinting()) speed *= 1.12;
+                Vector direction = p.getEyeLocation().getDirection().normalize();
+                Vector velocity = direction.multiply(speed);
+                velocity.setY(Math.max(-0.36, Math.min(0.58, velocity.getY() + lift)));
+                p.setVelocity(environmentVector(p, element, velocity));
                 p.setFallDistance(0f);
-                World w = p.getWorld();
-                Location l = p.getLocation();
-                w.spawnParticle(Particle.FLAME, l, 14, 0.25, 0.2, 0.25, 0.04);
-                w.spawnParticle(Particle.LAVA, l, 1, 0.2, 0.1, 0.2, 0);
-                w.spawnParticle(Particle.SMOKE, l, 4, 0.2, 0.1, 0.2, 0.01);
-                if (n % 4 == 0) for (LivingEntity le : foesAt(p, l, 2.2)) { le.setFireTicks(60); hurt(p, le, 1.5); }
+                if (element == Element.WIND) renderWindFlight(p, stage, elapsed);
+                else renderFireFlight(p, stage, elapsed);
+                elapsed++;
             }
-        }.runTaskTimer(magic, 0L, 1L);
+        };
+        flights.put(id, task);
+        task.runTaskTimer(magic, 1L, 1L);
         return true;
+    }
+
+    private void renderWindFlight(Player p, int stage, int ticks) {
+        Location body = p.getLocation().clone().add(0, 0.9, 0);
+        World world = p.getWorld();
+        int points = stage == 1 ? 8 : stage == 2 ? 12 : 22;
+        double radius = stage == 1 ? 0.48 : stage == 2 ? 0.62 : 0.8;
+        for (int i = 0; i < points; i++) {
+            double angle = (ticks * (stage == 3 ? 0.32 : 0.22)) + Math.PI * 2 * i / points;
+            double y = stage == 3 ? -0.55 + (i % 8) * 0.19 : -0.25 + (i % 4) * 0.22;
+            Location point = body.clone().add(Math.cos(angle) * radius, y, Math.sin(angle) * radius);
+            world.spawnParticle(Particle.CLOUD, point, stage == 3 ? 2 : 1, 0.04, 0.08, 0.04, 0.01);
+            if (stage == 3 && i % 3 == 0) world.spawnParticle(Particle.WHITE_ASH, point, 1, 0.05, 0.08, 0.05, 0.005);
+        }
+        if (stage >= 2) {
+            Vector forward = p.getLocation().getDirection().setY(0).normalize();
+            Vector back = forward.multiply(-0.3);
+            Location leftFoot = p.getLocation().clone().add(-0.18, 0.05, 0).add(back);
+            Location rightFoot = p.getLocation().clone().add(0.18, 0.05, 0).add(back);
+            world.spawnParticle(Particle.CLOUD, leftFoot, stage == 2 ? 5 : 9, 0.08, 0.2, 0.08, 0.04);
+            world.spawnParticle(Particle.CLOUD, rightFoot, stage == 2 ? 5 : 9, 0.08, 0.2, 0.08, 0.04);
+        }
+    }
+
+    private void renderFireFlight(Player p, int stage, int ticks) {
+        World world = p.getWorld();
+        Vector facing = p.getLocation().getDirection().setY(0).normalize();
+        if (facing.lengthSquared() < 0.001) facing = new Vector(0, 0, 1);
+        Vector right = new Vector(-facing.getZ(), 0, facing.getX()).normalize();
+        Location torso = p.getLocation().clone().add(0, 0.95, 0).add(facing.clone().multiply(0.18));
+        int jets = stage == 1 ? 2 : stage == 2 ? 3 : 4;
+        for (int side : new int[]{-1, 1}) {
+            Location hand = torso.clone().add(right.clone().multiply(side * 0.34));
+            for (int i = 1; i <= jets; i++) {
+                Location exhaust = hand.clone().add(0, -i * 0.34, 0).subtract(facing.clone().multiply(i * 0.08));
+                world.spawnParticle(Particle.FLAME, exhaust, stage == 3 ? 5 : 3, 0.07, 0.07, 0.07, 0.025);
+                world.spawnParticle(Particle.SMOKE, exhaust, stage == 1 ? 1 : 2, 0.04, 0.06, 0.04, 0.01);
+            }
+        }
+        if (stage >= 2) world.spawnParticle(Particle.LAVA, p.getLocation().clone().add(0, -0.2, 0), 2 + stage, 0.22, 0.12, 0.22, 0.01);
+        if (stage == 3 && ticks % 3 == 0) world.spawnParticle(Particle.FLAME, p.getLocation(), 18, 0.42, 0.45, 0.42, 0.035);
+    }
+
+    private void stopFlight(Player p, boolean notify, String message) {
+        if (p == null) return;
+        BukkitRunnable task = flights.remove(p.getUniqueId());
+        if (task != null) task.cancel();
+        if (p.isOnline() && !p.isDead()) {
+            effect(p, p, PotionEffectType.SLOW_FALLING, 60, 0);
+            p.setFallDistance(0f);
+            if (notify && message != null) p.sendMessage(Magic.c(message));
+        }
     }
 
     // ============================================================ WATER
@@ -787,11 +1238,11 @@ final class PowerMode implements Listener {
             w.spawnParticle(Particle.DRIPPING_WATER, l, 6, 0.5, 0.4, 0.5, 0);
         }
         snd(p.getLocation(), Sound.ENTITY_PLAYER_SPLASH, 0.7f);
-        effect(p, PotionEffectType.REGENERATION, 60, 0);
+        effect(p, p, PotionEffectType.REGENERATION, 60, 0);
         for (LivingEntity le : cone(p, 7, 0.5)) {
             hurt(p, le, 2 + 0.6 * t);
-            effect(le, PotionEffectType.SLOWNESS, 60, 1);
-            le.setVelocity(d.clone().multiply(1.0).setY(0.3));
+            effect(p, le, PotionEffectType.SLOWNESS, 60, 1);
+            applyVelocity(p, le, d.clone().multiply(1.0).setY(0.3));
         }
         return true;
     }
@@ -799,8 +1250,8 @@ final class PowerMode implements Listener {
     private boolean bubble(Player p, int t) {
         LivingEntity target = firstTarget(p, 18);
         if (target == null) { p.sendActionBar(Magic.c("§cمفيش هدف قدامك")); return false; }
-        effect(target, PotionEffectType.SLOWNESS, 50, 4);
-        effect(target, PotionEffectType.LEVITATION, 40, 0);
+        effect(p, target, PotionEffectType.SLOWNESS, 50, 4);
+        effect(p, target, PotionEffectType.LEVITATION, 40, 0);
         snd(target.getLocation(), Sound.BLOCK_BEACON_ACTIVATE, 1.6f);
         new BukkitRunnable() {
             int n = 0;
@@ -827,11 +1278,11 @@ final class PowerMode implements Listener {
     }
 
     private boolean swim(Player p, int t) {
-        effect(p, PotionEffectType.DOLPHINS_GRACE, 160, 1);
-        effect(p, PotionEffectType.SPEED, 100, 1);
-        effect(p, PotionEffectType.REGENERATION, 80, 0);
-        effect(p, PotionEffectType.WATER_BREATHING, 240, 0);
-        p.setVelocity(dir(p).multiply(1.1).setY(0.25));
+        effect(p, p, PotionEffectType.DOLPHINS_GRACE, 160, 1);
+        effect(p, p, PotionEffectType.SPEED, 100, 1);
+        effect(p, p, PotionEffectType.REGENERATION, 80, 0);
+        effect(p, p, PotionEffectType.WATER_BREATHING, 240, 0);
+        applyVelocity(p, p, dir(p).multiply(1.1).setY(0.25));
         snd(p.getLocation(), Sound.ENTITY_PLAYER_SPLASH, 1.1f);
         new BukkitRunnable() {
             int n = 0;
@@ -861,7 +1312,7 @@ final class PowerMode implements Listener {
                 for (LivingEntity le : foesAt(p, l, 1.4)) {
                     if (!hit.add(le)) continue;
                     hurt(p, le, 4 + t);
-                    le.setVelocity(new Vector(0, 0.8, 0));
+                    applyVelocity(p, le, new Vector(0, 0.8, 0));
                 }
                 i++;
             }
@@ -870,8 +1321,8 @@ final class PowerMode implements Listener {
     }
 
     private boolean earthArmor(Player p, int t) {
-        effect(p, PotionEffectType.RESISTANCE, 120, 1);
-        effect(p, PotionEffectType.ABSORPTION, 200, 1);
+        effect(p, p, PotionEffectType.RESISTANCE, 120, 1);
+        effect(p, p, PotionEffectType.ABSORPTION, 200, 1);
         snd(p.getLocation(), Sound.BLOCK_ANVIL_LAND, 0.5f);
         World w = p.getWorld();
         ring(p.getLocation().add(0, 0.3, 0), 1.2, 20, l -> w.spawnParticle(Particle.BLOCK, l, 8, 0.1, 0.5, 0.1, 0.05, Material.DIRT.createBlockData()));
@@ -894,7 +1345,7 @@ final class PowerMode implements Listener {
                 for (LivingEntity le : foesAt(p, c, r + 0.5)) {
                     if (!hit.add(le)) continue;
                     hurt(p, le, 3 + t);
-                    magic.push(le, c, 0.6, 0.8);
+                    magic.push(p, le, c, 0.6, 0.8);
                 }
                 n++;
             }
@@ -911,10 +1362,10 @@ final class PowerMode implements Listener {
             w.spawnParticle(Particle.CLOUD, l, 8, 0.2 + i * 0.1, 0.2 + i * 0.07, 0.2 + i * 0.1, 0.08);
         }
         snd(p.getLocation(), Sound.ENTITY_ENDER_DRAGON_FLAP, 1.4f);
-        effect(p, PotionEffectType.SPEED, 60, 1);
+        effect(p, p, PotionEffectType.SPEED, 60, 1);
         for (LivingEntity le : cone(p, 7, 0.4)) {
             hurt(p, le, 1 + 0.3 * t);
-            le.setVelocity(d.clone().multiply(1.3).setY(0.5));
+            applyVelocity(p, le, d.clone().multiply(1.3).setY(0.5));
         }
         return true;
     }
@@ -922,8 +1373,8 @@ final class PowerMode implements Listener {
     private boolean windLeap(Player p, int t) {
         Vector d = dir(p).setY(0);
         if (d.lengthSquared() > 0.01) d.normalize().multiply(0.9);
-        p.setVelocity(d.setY(1.1 + 0.05 * t));
-        effect(p, PotionEffectType.SLOW_FALLING, 100, 0);
+        applyVelocity(p, p, d.setY(1.1 + 0.05 * t));
+        effect(p, p, PotionEffectType.SLOW_FALLING, 100, 0);
         snd(p.getLocation(), Sound.ENTITY_ENDER_DRAGON_FLAP, 1.0f);
         p.getWorld().spawnParticle(Particle.CLOUD, p.getLocation(), 40, 0.5, 0.1, 0.5, 0.1);
         return true;
@@ -945,7 +1396,7 @@ final class PowerMode implements Listener {
                 }
                 for (LivingEntity le : foesAt(p, c, 4.5)) {
                     Vector pull = c.toVector().subtract(le.getLocation().toVector()).setY(0).multiply(0.15);
-                    le.setVelocity(pull.setY(0.38));
+                    applyVelocity(p, le, pull.setY(0.38));
                     if (n % 10 == 0) hurt(p, le, 1 + 0.3 * t);
                 }
             }
@@ -971,8 +1422,8 @@ final class PowerMode implements Listener {
 
     private boolean thunderDash(Player p, int t) {
         Vector d = dir(p);
-        p.setVelocity(d.clone().multiply(1.5 + 0.15 * t).setY(Math.max(0.1, d.getY() * 0.6)));
-        effect(p, PotionEffectType.SPEED, 60, 1);
+        applyVelocity(p, p, d.clone().multiply(1.5 + 0.15 * t).setY(Math.max(0.1, d.getY() * 0.6)));
+        effect(p, p, PotionEffectType.SPEED, 60, 1);
         snd(p.getLocation(), Sound.ENTITY_LIGHTNING_BOLT_THUNDER, 1.6f);
         Set<LivingEntity> hit = new HashSet<>();
         new BukkitRunnable() {
@@ -992,7 +1443,7 @@ final class PowerMode implements Listener {
     }
 
     private boolean staticField(Player p, int t) {
-        effect(p, PotionEffectType.SPEED, 100, 1);
+        effect(p, p, PotionEffectType.SPEED, 100, 1);
         snd(p.getLocation(), Sound.BLOCK_BEACON_ACTIVATE, 1.8f);
         new BukkitRunnable() {
             int n = 0;
@@ -1063,8 +1514,8 @@ final class PowerMode implements Listener {
         p.teleport(dest);
         w.spawnParticle(Particle.REVERSE_PORTAL, dest.clone().add(0, 1, 0), 60, 0.4, 0.8, 0.4, 0.2);
         snd(dest, Sound.ENTITY_ENDERMAN_TELEPORT, 1.2f);
-        effect(p, PotionEffectType.INVISIBILITY, 40, 0);
-        if (shadowMult(p) > 1.0) effect(p, PotionEffectType.SPEED, 60, 1);
+        effect(p, p, PotionEffectType.INVISIBILITY, 40, 0);
+        if (shadowMult(p) > 1.0) effect(p, p, PotionEffectType.SPEED, 60, 1);
         return true;
     }
 
@@ -1079,9 +1530,9 @@ final class PowerMode implements Listener {
         }
         snd(p.getLocation(), Sound.ENTITY_WITHER_SHOOT, 0.8f + (float) (mult * 0.2));
         for (LivingEntity le : cone(p, 6, 0.5)) {
-            hurt(p, le, (3 + t * 1.3) * mult);
-            effect(le, PotionEffectType.BLINDNESS, (int) (60 * mult), 0);
-            if (mult > 1.0) effect(le, PotionEffectType.WITHER, 60, 0);
+            hurt(p, le, 3 + t * 1.3);
+            effect(p, le, PotionEffectType.BLINDNESS, 60, 0);
+            if (mult > 1.0) effect(p, le, PotionEffectType.WITHER, 60, 0);
         }
         p.sendActionBar(Magic.c(mult > 1.0 ? "§5الظلام بيقوّي ضربتك!" : mult < 1.0 ? "§7النور بيضعّف ضربتك" : "§7ضربة الظلام"));
         return true;
@@ -1091,14 +1542,14 @@ final class PowerMode implements Listener {
         World w = p.getWorld();
         w.spawnParticle(Particle.SQUID_INK, p.getLocation().add(0, 1, 0), 50, 0.5, 0.9, 0.5, 0.05);
         if (shadowMult(p) > 1.0) {
-            effect(p, PotionEffectType.INVISIBILITY, 200, 0);
-            effect(p, PotionEffectType.SPEED, 200, 1);
-            effect(p, PotionEffectType.STRENGTH, 200, 1);
-            effect(p, PotionEffectType.NIGHT_VISION, 260, 0);
+            effect(p, p, PotionEffectType.INVISIBILITY, 200, 0);
+            effect(p, p, PotionEffectType.SPEED, 200, 1);
+            effect(p, p, PotionEffectType.STRENGTH, 200, 1);
+            effect(p, p, PotionEffectType.NIGHT_VISION, 260, 0);
             snd(p.getLocation(), Sound.ENTITY_WITHER_SHOOT, 0.6f);
             p.sendActionBar(Magic.c("§5العباءة كاملة — الضلمة معاك"));
         } else {
-            effect(p, PotionEffectType.INVISIBILITY, 60, 0);
+            effect(p, p, PotionEffectType.INVISIBILITY, 60, 0);
             p.sendActionBar(Magic.c("§7مفيش ضلمة كفاية — العباءة أضعف"));
         }
         return true;
@@ -1120,8 +1571,8 @@ final class PowerMode implements Listener {
             }
         }.runTaskTimer(magic, 0L, 2L);
         for (LivingEntity le : foesAt(p, c, r)) {
-            le.setFreezeTicks(le.getMaxFreezeTicks() + 60);
-            effect(le, PotionEffectType.SLOWNESS, 80, 2);
+            le.setFreezeTicks(Math.min(le.getMaxFreezeTicks(), le.getFreezeTicks() + environmentDuration(p, 60)));
+            effect(p, le, PotionEffectType.SLOWNESS, 80, 2);
             hurt(p, le, 2 + 0.5 * t);
         }
         return true;
@@ -1137,8 +1588,8 @@ final class PowerMode implements Listener {
                         l.getWorld().spawnParticle(Particle.SNOWFLAKE, l, 30, 0.4, 0.4, 0.4, 0.1);
                         if (hit != null) {
                             hurt(p, hit, 3 + 0.8 * t);
-                            effect(hit, PotionEffectType.SLOWNESS, 60, 1);
-                            hit.setFreezeTicks(hit.getMaxFreezeTicks() + 40);
+                            effect(p, hit, PotionEffectType.SLOWNESS, 60, 1);
+                            hit.setFreezeTicks(Math.min(hit.getMaxFreezeTicks(), hit.getFreezeTicks() + environmentDuration(p, 40)));
                         }
                     }, d);
         }
@@ -1156,8 +1607,8 @@ final class PowerMode implements Listener {
                 w.spawnParticle(Particle.SNOWFLAKE, c.clone().add(0, 2, 0), 40, 3.5, 1.8, 3.5, 0.05);
                 w.spawnParticle(Particle.CLOUD, c.clone().add(0, 0.5, 0), 6, 3, 0.3, 3, 0.02);
                 for (LivingEntity le : foesAt(p, c, 4.5)) {
-                    effect(le, PotionEffectType.SLOWNESS, 30, 2);
-                    le.setFreezeTicks(le.getMaxFreezeTicks() + 20);
+                    effect(p, le, PotionEffectType.SLOWNESS, 30, 2);
+                    le.setFreezeTicks(Math.min(le.getMaxFreezeTicks(), le.getFreezeTicks() + environmentDuration(p, 20)));
                     if (n % 4 == 0) hurt(p, le, 1 + 0.3 * t);
                 }
             }
@@ -1167,12 +1618,12 @@ final class PowerMode implements Listener {
 
     // ============================================================ METAL
     private boolean steelGuard(Player p, int t) {
-        effect(p, PotionEffectType.RESISTANCE, 100, 2);
+        effect(p, p, PotionEffectType.RESISTANCE, 100, 2);
         snd(p.getLocation(), Sound.ITEM_ARMOR_EQUIP_IRON, 0.8f);
         World w = p.getWorld();
         Location c = p.getLocation();
         ring(c.clone().add(0, 1, 0), 1.3, 24, l -> w.spawnParticle(Particle.CRIT, l, 3, 0.05, 0.4, 0.05, 0.02));
-        for (LivingEntity le : foesAt(p, c, 3.0)) magic.push(le, c, 0.9, 0.25);
+        for (LivingEntity le : foesAt(p, c, 3.0)) magic.push(p, le, c, 0.9, 0.25);
         return true;
     }
 
@@ -1183,7 +1634,7 @@ final class PowerMode implements Listener {
         for (LivingEntity le : list) {
             Vector pull = p.getLocation().toVector().subtract(le.getLocation().toVector()).multiply(0.25);
             if (pull.length() > 1.6) pull.normalize().multiply(1.6);
-            le.setVelocity(pull.setY(0.2));
+            applyVelocity(p, le, pull.setY(0.2));
             hurt(p, le, 2 + 0.5 * t);
             le.getWorld().spawnParticle(Particle.CRIT, le.getLocation().add(0, 1, 0), 15, 0.3, 0.5, 0.3, 0.2);
         }
@@ -1192,7 +1643,7 @@ final class PowerMode implements Listener {
 
     private boolean ironFist(Player p, int t) {
         Vector d = dir(p);
-        p.setVelocity(d.clone().multiply(1.2).setY(0.15));
+        applyVelocity(p, p, d.clone().multiply(1.2).setY(0.15));
         snd(p.getLocation(), Sound.ENTITY_IRON_GOLEM_ATTACK, 0.9f);
         new BukkitRunnable() {
             @Override public void run() {
@@ -1202,7 +1653,7 @@ final class PowerMode implements Listener {
                 snd(l, Sound.BLOCK_ANVIL_LAND, 1.0f);
                 for (LivingEntity le : cone(p, 3.5, 0.2)) {
                     hurt(p, le, 6 + 1.4 * t);
-                    magic.push(le, l, 1.2, 0.4);
+                    magic.push(p, le, l, 1.2, 0.4);
                 }
             }
         }.runTaskLater(magic, 6L);
@@ -1215,8 +1666,8 @@ final class PowerMode implements Listener {
         if (list.isEmpty()) { p.sendActionBar(Magic.c("§cمفيش حد قريب")); return false; }
         snd(p.getLocation(), Sound.ITEM_BONE_MEAL_USE, 0.6f);
         for (LivingEntity le : list) {
-            effect(le, PotionEffectType.SLOWNESS, 100, 5);
-            effect(le, PotionEffectType.POISON, 60, 0);
+            effect(p, le, PotionEffectType.SLOWNESS, 100, 5);
+            effect(p, le, PotionEffectType.POISON, 60, 0);
             hurt(p, le, 1);
             Location l = le.getLocation();
             l.getWorld().spawnParticle(Particle.HAPPY_VILLAGER, l.clone().add(0, 0.4, 0), 25, 0.4, 0.4, 0.4, 0.05);
@@ -1231,12 +1682,12 @@ final class PowerMode implements Listener {
         World w = c.getWorld();
         ring(c.clone().add(0, 0.2, 0), 5, 36, l -> w.spawnParticle(Particle.HAPPY_VILLAGER, l, 2, 0.1, 0.3, 0.1, 0.02));
         w.spawnParticle(Particle.CHERRY_LEAVES, c.clone().add(0, 1.5, 0), 40, 2.5, 1, 2.5, 0.02);
-        effect(p, PotionEffectType.REGENERATION, 100, 1);
-        effect(p, PotionEffectType.INSTANT_HEALTH, 1, 0);
+        effect(p, p, PotionEffectType.REGENERATION, 100, 1);
+        effect(p, p, PotionEffectType.INSTANT_HEALTH, 1, 0);
         for (Entity en : w.getNearbyEntities(c, 5, 5, 5)) {
             if (en instanceof Player o && o != p && o.getGameMode() != GameMode.SPECTATOR) {
-                effect(o, PotionEffectType.REGENERATION, 100, 1);
-                effect(o, PotionEffectType.INSTANT_HEALTH, 1, 0);
+                effect(p, o, PotionEffectType.REGENERATION, 100, 1);
+                effect(p, o, PotionEffectType.INSTANT_HEALTH, 1, 0);
             }
         }
         return true;
@@ -1250,8 +1701,8 @@ final class PowerMode implements Listener {
         w.spawnParticle(Particle.HAPPY_VILLAGER, c.clone().add(0, 1, 0), 40, 2.2, 0.8, 2.2, 0.1);
         for (LivingEntity le : foesAt(p, c, 5)) {
             hurt(p, le, 3 + 0.8 * t);
-            effect(le, PotionEffectType.POISON, 80, 0);
-            magic.push(le, c, 0.7, 0.3);
+            effect(p, le, PotionEffectType.POISON, 80, 0);
+            magic.push(p, le, c, 0.7, 0.3);
         }
         return true;
     }
@@ -1263,10 +1714,10 @@ final class PowerMode implements Listener {
         w.spawnParticle(Particle.FLASH, c.clone().add(0, 1, 0), 1);
         w.spawnParticle(Particle.END_ROD, c.clone().add(0, 1, 0), 80, 1.5, 1, 1.5, 0.2);
         snd(c, Sound.BLOCK_BEACON_ACTIVATE, 1.8f);
-        effect(p, PotionEffectType.SPEED, 80, 1);
+        effect(p, p, PotionEffectType.SPEED, 80, 1);
         for (LivingEntity le : foesAt(p, c, 8)) {
-            effect(le, PotionEffectType.BLINDNESS, 60 + 10 * t, 0);
-            effect(le, PotionEffectType.GLOWING, 100, 0);
+            effect(p, le, PotionEffectType.BLINDNESS, 60 + 10 * t, 0);
+            effect(p, le, PotionEffectType.GLOWING, 100, 0);
         }
         return true;
     }
@@ -1291,9 +1742,9 @@ final class PowerMode implements Listener {
                 PotionEffectType.SLOWNESS, PotionEffectType.WEAKNESS, PotionEffectType.BLINDNESS, PotionEffectType.NAUSEA})
             p.removePotionEffect(bad);
         p.setFireTicks(0);
-        effect(p, PotionEffectType.INSTANT_HEALTH, 1, 0);
-        effect(p, PotionEffectType.REGENERATION, 100, 1);
-        effect(p, PotionEffectType.ABSORPTION, 100, 0);
+        effect(p, p, PotionEffectType.INSTANT_HEALTH, 1, 0);
+        effect(p, p, PotionEffectType.REGENERATION, 100, 1);
+        effect(p, p, PotionEffectType.ABSORPTION, 100, 0);
         Location c = p.getLocation();
         snd(c, Sound.ENTITY_PLAYER_LEVELUP, 1.2f);
         World w = c.getWorld();
@@ -1313,7 +1764,7 @@ final class PowerMode implements Listener {
         snd(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_BELL, 0.6f);
         for (LivingEntity le : cone(p, 8, 0.3)) {
             hurt(p, le, 2 + 0.5 * t);
-            le.setVelocity(d.clone().multiply(1.6).setY(0.4));
+            applyVelocity(p, le, d.clone().multiply(1.6).setY(0.4));
         }
         return true;
     }
@@ -1331,7 +1782,7 @@ final class PowerMode implements Listener {
             for (LivingEntity le : foesAt(p, l, 1.5)) {
                 if (!hit.add(le)) continue;
                 hurt(p, le, 5 + 1.2 * t);
-                effect(le, PotionEffectType.NAUSEA, 100, 0);
+                effect(p, le, PotionEffectType.NAUSEA, 100, 0);
             }
         }
         return true;
@@ -1349,7 +1800,7 @@ final class PowerMode implements Listener {
                 snd(c, Sound.BLOCK_NOTE_BLOCK_BELL, 0.6f + n * 0.3f);
                 for (LivingEntity le : foesAt(p, c, 5)) {
                     hurt(p, le, 1.5 + 0.4 * t);
-                    magic.push(le, c, 0.35, 0.15);
+                    magic.push(p, le, c, 0.35, 0.15);
                 }
             }
         }.runTaskTimer(magic, 0L, 12L);
@@ -1369,7 +1820,7 @@ final class PowerMode implements Listener {
                         l.getWorld().spawnParticle(Particle.END_ROD, l, 15, 0.3, 0.3, 0.3, 0.1);
                         if (hit != null) {
                             hurt(p, hit, 2.5 + 0.7 * t);
-                            effect(hit, PotionEffectType.SLOWNESS, 40, 0);
+                            effect(p, hit, PotionEffectType.SLOWNESS, 40, 0);
                         }
                     }, d);
         }
@@ -1377,8 +1828,8 @@ final class PowerMode implements Listener {
     }
 
     private boolean prismShield(Player p, int t) {
-        effect(p, PotionEffectType.ABSORPTION, 200, 2);
-        effect(p, PotionEffectType.RESISTANCE, 160, 0);
+        effect(p, p, PotionEffectType.ABSORPTION, 200, 2);
+        effect(p, p, PotionEffectType.RESISTANCE, 160, 0);
         snd(p.getLocation(), Sound.BLOCK_AMETHYST_BLOCK_CHIME, 0.8f);
         Particle.DustOptions dust = new Particle.DustOptions(Color.fromRGB(180, 120, 255), 1.1f);
         new BukkitRunnable() {
@@ -1402,8 +1853,8 @@ final class PowerMode implements Listener {
     private boolean crystalCage(Player p, int t) {
         LivingEntity target = firstTarget(p, 14);
         if (target == null) { p.sendActionBar(Magic.c("§cمفيش هدف قدامك")); return false; }
-        effect(target, PotionEffectType.SLOWNESS, 70, 6);
-        effect(target, PotionEffectType.GLOWING, 70, 0);
+        effect(p, target, PotionEffectType.SLOWNESS, 70, 6);
+        effect(p, target, PotionEffectType.GLOWING, 70, 0);
         snd(target.getLocation(), Sound.BLOCK_AMETHYST_BLOCK_CHIME, 0.7f);
         Particle.DustOptions dust = new Particle.DustOptions(Color.fromRGB(150, 240, 255), 1.3f);
         new BukkitRunnable() {
@@ -1433,21 +1884,21 @@ final class PowerMode implements Listener {
         World w = l.getWorld();
         w.spawnParticle(el.particle, l, 14, 0.3, 0.4, 0.3, 0.05);
         switch (el) {
-            case FIRE -> t.setFireTicks(60 + 10 * tier);
-            case WATER -> { effect(t, PotionEffectType.SLOWNESS, 40, 0); effect(p, PotionEffectType.REGENERATION, 40, 0); }
-            case EARTH -> t.setVelocity(new Vector(0, 0.45, 0));
-            case WIND -> magic.push(t, p.getLocation(), 0.9, 0.3);
+            case FIRE -> t.setFireTicks(environmentDuration(p, Element.FIRE, 60 + 10 * tier));
+            case WATER -> { effect(p, t, PotionEffectType.SLOWNESS, 40, 0); effect(p, p, PotionEffectType.REGENERATION, 40, 0); }
+            case EARTH -> applyVelocity(p, t, new Vector(0, 0.45, 0));
+            case WIND -> magic.push(p, t, p.getLocation(), 0.9, 0.3);
             case LIGHTNING -> {
                 w.strikeLightningEffect(t.getLocation());
                 for (LivingEntity o : foesAt(p, t.getLocation(), 4)) if (o != t) { hurt(p, o, 2); break; }
             }
-            case SHADOW -> effect(t, PotionEffectType.BLINDNESS, (int) (40 * shadowMult(p)), 0);
-            case ICE -> { t.setFreezeTicks(t.getMaxFreezeTicks() + 40); effect(t, PotionEffectType.SLOWNESS, 50, 1); }
-            case METAL -> magic.push(t, p.getLocation(), 0.5, 0.2);
-            case NATURE -> effect(t, PotionEffectType.POISON, 60, 0);
-            case LIGHT -> { effect(t, PotionEffectType.GLOWING, 100, 0); effect(t, PotionEffectType.BLINDNESS, 30, 0); }
-            case SOUND -> { effect(t, PotionEffectType.NAUSEA, 60, 0); magic.push(t, p.getLocation(), 0.6, 0.2); }
-            case CRYSTAL -> effect(t, PotionEffectType.SLOWNESS, 60, 1);
+            case SHADOW -> effect(p, t, PotionEffectType.BLINDNESS, 40, 0);
+            case ICE -> { t.setFreezeTicks(Math.min(t.getMaxFreezeTicks(), t.getFreezeTicks() + environmentDuration(p, Element.ICE, 40))); effect(p, t, PotionEffectType.SLOWNESS, 50, 1); }
+            case METAL -> magic.push(p, t, p.getLocation(), 0.5, 0.2);
+            case NATURE -> effect(p, t, PotionEffectType.POISON, 60, 0);
+            case LIGHT -> { effect(p, t, PotionEffectType.GLOWING, 100, 0); effect(p, t, PotionEffectType.BLINDNESS, 30, 0); }
+            case SOUND -> { effect(p, t, PotionEffectType.NAUSEA, 60, 0); magic.push(p, t, p.getLocation(), 0.6, 0.2); }
+            case CRYSTAL -> effect(p, t, PotionEffectType.SLOWNESS, 60, 1);
             case SHAPESHIFT -> { if (magic.shapeshift != null) magic.shapeshift.onMelee(p, t, tier); }
         }
     }
