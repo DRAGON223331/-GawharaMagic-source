@@ -54,7 +54,7 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
     static final int MAX_LEVEL = 100;
     static final int TOTAL_TRIALS = 20;
     static final int[] FIRST_LEVELS = {0, 20, 60, 130, 250};
-    static final int[] SLOTS = {10, 11, 12, 13, 14, 15, 16, 19, 20, 21, 22, 23, 24};
+    static final int[] SLOTS = {10, 11, 12, 13, 14, 15, 16, 19, 20, 21, 22, 23, 24, 25, 26};
 
     enum TrialKind {
         FIRE_GLOW, FIRE_LIGHTS,
@@ -338,6 +338,8 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
                         case 2 -> "أثبت أنك أتقنت التحول باختيار شكل جديد واستخدامه.";
                         default -> "اجمع الأشكال وبدّل بينها لتثبت سيطرتك على التحول.";
                     });
+            case MIND_CONTROL -> new Trial(TrialKind.ELEMENT_MASTERY, 2 + difficulty, "أتقن تركيزك الذهني واستخدم قدرات السيطرة على الإدراك.");
+            case TELEKINESIS -> new Trial(TrialKind.ELEMENT_MASTERY, 2 + difficulty, "اقتلع بلوكات العالم واقذفها وتحكم في حركة الخصوم باتجاه نظرك.");
         };
     }
 
@@ -1063,6 +1065,8 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
                 addEnvironmentEffect(attacker, element, target, PotionEffectType.WEAKNESS, 20 + tier * 8, 0);
                 world.spawnParticle(Particle.PORTAL, at, 8 + tier * 2, 0.2, 0.3, 0.2, 0.04);
             }
+            case MIND_CONTROL -> { addEnvironmentEffect(attacker, element, target, PotionEffectType.SLOWNESS, 35 + tier * 12, 1); addEnvironmentEffect(attacker, element, target, PotionEffectType.NAUSEA, 25 + tier * 8, 0); world.spawnParticle(Particle.WITCH, at, 8 + tier * 3, .2, .3, .2, .02); }
+            case TELEKINESIS -> { Vector pull = attacker.getLocation().toVector().subtract(target.getLocation().toVector()).normalize().multiply(.25 + tier * .06).setY(.12); target.setVelocity(environmentVector(attacker, pull)); world.spawnParticle(Particle.REVERSE_PORTAL, at, 8 + tier * 3, .2, .3, .2, .03); }
         }
     }
 
@@ -1272,6 +1276,8 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
             case SOUND -> "الموجة الصوتية";
             case CRYSTAL -> "شظايا البلور";
             case SHAPESHIFT -> "قدرة الشكل المختار";
+            case MIND_CONTROL -> "سيطرة ذهنية";
+            case TELEKINESIS -> "تحريك ذهني";
         };
     }
 
@@ -1485,6 +1491,8 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
                     }
                 }
                 case SHAPESHIFT -> { /* Routed through PowerMode above. */ }
+                case MIND_CONTROL -> { addEnvironmentEffect(p, el, p, PotionEffectType.RESISTANCE, 40 + tier * 8, 0); for (LivingEntity target : near(p, 3.5 + tier * .4)) addEnvironmentEffect(p, el, target, PotionEffectType.SLOWNESS, 40 + tier * 8, 1); }
+                case TELEKINESIS -> { for (LivingEntity target : near(p, 4 + tier * .4)) { Vector pull = p.getLocation().toVector().subtract(target.getLocation().toVector()).normalize().multiply(.35 + tier * .06).setY(.18); target.setVelocity(pull); } }
             }
         } finally {
             inAbility = false;
@@ -1504,7 +1512,10 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
             {"نصل الأشواك", "فأس الجذور", "قوس البذور", "سيف الإزهار", "حارس الغابة"},
             {"شفرة الفجر", "فأس الشروق", "قوس الشعاع", "نصل الوميض", "تاج الشمس"},
             {"نصل النغمة", "فأس الصدى", "قوس الرنين", "سيف الاهتزاز", "مطرقة الصوت"},
-            {"نصل الأميثيست", "كسارة البلور", "قوس الشظايا", "سيف المنشور", "قلب الكريستال"}
+            {"نصل الأميثيست", "كسارة البلور", "قوس الشظايا", "سيف المنشور", "قلب الكريستال"},
+            {"لا يوجد سلاح للتحول", "لا يوجد سلاح للتحول", "لا يوجد سلاح للتحول", "لا يوجد سلاح للتحول", "لا يوجد سلاح للتحول"},
+            {"نصل الأفكار", "خنجر الوهم", "قوس الإدراك", "سيف السيطرة", "تاج العقل"},
+            {"قبضة الجاذبية", "مطرقة الفراغ", "رمح التحريك", "سيف المدار", "قلب الجاذبية"}
         };
         return names[element.ordinal()][Math.max(1, Math.min(5, tier)) - 1];
     }
@@ -1522,7 +1533,10 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
             {"شوكة سامة", "أسر الجذور", "قذيفة البذور", "ازدهار الحياة", "الغابة القديمة"},
             {"شعاع الفجر", "نبضة التوهج", "رمح الضوء", "خطوة الوميض", "الشمس الساطعة"},
             {"لسعة صوتية", "موجة الصدمة", "قذيفة الرنين", "نبضة الصدى", "الانفجار الصوتي"},
-            {"شظية بلورية", "وابل البلور", "رمح الكريستال", "سجن المنشور", "انفجار المنشور"}
+            {"شظية بلورية", "وابل البلور", "رمح الكريستال", "سجن المنشور", "انفجار المنشور"},
+            {"لا توجد مهارة سلاح للتحول", "لا توجد مهارة سلاح للتحول", "لا توجد مهارة سلاح للتحول", "لا توجد مهارة سلاح للتحول", "لا توجد مهارة سلاح للتحول"},
+            {"همس العقل", "صدمة الإدراك", "وهم ذهني", "شبكة السيطرة", "سيادة العقل"},
+            {"جذب الأشياء", "رفع ذهني", "قذف الطاقة", "مدار الصخور", "انهيار الجاذبية"}
         };
         return names[element.ordinal()][Math.max(1, Math.min(5, tier)) - 1];
     }
@@ -1540,7 +1554,10 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
             {"شوكة سامة تصيب هدفًا أمامك", "جذور تقيد حركة عدة خصوم", "قذيفة بذور تحمل أثر السم", "ازدهار يعالجك ويؤذي القريبين", "غابة قديمة تقيد الخصوم وتجدد صحتك"},
             {"شعاع يكشف الهدف ويشوشه", "نبضة نور تكشف القريبين وتدفعهم", "رمح ضوئي بعيد المدى", "خطوة وميض سريعة عبر خط الهجوم", "شمس ساطعة تكشف الخصوم وتمنحك سرعة"},
             {"لسعة صوتية تصدم هدفًا أمامك", "موجة صدمة تدفع القريبين", "قذيفة رنين بعيدة المدى", "نبضة صدى تهز المنطقة عدة مرات بصريًا", "انفجار صوتي واسع يبعثر الخصوم"},
-            {"شظية حادة تبطئ الهدف", "وابل بلوري يصيب عدة خصوم", "رمح كريستالي بعيد المدى", "سجن منشوري يقيّد هدفًا أمامك", "انفجار منشوري يملأ المنطقة بالشظايا"}
+            {"شظية حادة تبطئ الهدف", "وابل بلوري يصيب عدة خصوم", "رمح كريستالي بعيد المدى", "سجن منشوري يقيّد هدفًا أمامك", "انفجار منشوري يملأ المنطقة بالشظايا"},
+            {"عنصر التحول لا يستخدم سلاحًا", "عنصر التحول لا يستخدم سلاحًا", "عنصر التحول لا يستخدم سلاحًا", "عنصر التحول لا يستخدم سلاحًا", "عنصر التحول لا يستخدم سلاحًا"},
+            {"تأثير ذهني يربك هدفًا", "نبضة تربك عدة خصوم", "وهم يخفي تحركاتك", "تقييد ذهني جماعي", "سيطرة واسعة على الإدراك"},
+            {"سحب هدف نحوك", "رفع هدف في الهواء", "قذف هدف بعيدًا", "حاجز من الطاقة", "سحب وقذف جماعي"}
         };
         return "§7" + descriptions[element.ordinal()][Math.max(1, Math.min(5, tier)) - 1];
     }
@@ -1782,7 +1799,7 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
                     default -> { ring(origin, Particle.BLOCK, Material.AMETHYST_BLOCK.createBlockData(), 10.0, 13); hitArea(player, weapon, origin, damage + 3.9, 10.0, 10, 0.48, 0.2); world.spawnParticle(Particle.END_ROD, origin.clone().add(0, 1, 0), 100, 2.0, 1.3, 2.0, 0.06); addEnvironmentEffect(player, weapon.el(), player, PotionEffectType.ABSORPTION, 180, 1); }
                 }
             }
-            case SHAPESHIFT -> { /* Shapeshift is an unarmed school; no weapon skills are issued. */ }
+            case SHAPESHIFT, MIND_CONTROL, TELEKINESIS -> { /* These schools use their own ability kits, not weapon skills. */ }
         }
     }
 
@@ -2056,6 +2073,8 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
             case "sound", "صوت" -> Element.SOUND;
             case "crystal", "كريستال" -> Element.CRYSTAL;
             case "shapeshift", "transform", "التحول", "تحول" -> Element.SHAPESHIFT;
+            case "mind_control", "mindcontrol", "mind", "التحكم بالعقل", "التحكم العقل" -> Element.MIND_CONTROL;
+            case "telekinesis", "telekinetic", "تحريك ذهني", "التحريك الذهني", "تليكنيسيس" -> Element.TELEKINESIS;
             default -> null;
         };
     }

@@ -31,7 +31,11 @@ public enum Element {
     CRYSTAL("الكريستال", "§3", Material.AMETHYST_SHARD, Particle.END_ROD, Sound.BLOCK_AMETHYST_BLOCK_CHIME,
             "شظايا البلور", "شظايا حادة تصيب الأهداف وتبطّئها"),
     SHAPESHIFT("التحول", "§d", Material.DRAGON_EGG, Particle.PORTAL, Sound.ENTITY_ENDERMAN_TELEPORT,
-            "التحول إلى الكائنات", "اقتل الكائنات العشرة لتتعلم أشكالها وقدراتها؛ كل مستوى يفتح خانة جديدة حتى 10 أشكال");
+            "التحول إلى الكائنات", "اقتل الكائنات العشرة لتتعلم أشكالها وقدراتها؛ كل مستوى يفتح خانة جديدة حتى 10 أشكال"),
+    MIND_CONTROL("التحكم بالعقل", "§5", Material.AMETHYST_SHARD, Particle.WITCH, Sound.ENTITY_ILLUSIONER_PREPARE_BLINDNESS,
+            "السيطرة الذهنية", "تؤثر على إدراك الخصوم وتربكهم وتستدعي أوامر عقلية تكتيكية"),
+    TELEKINESIS("التحريك الذهني", "§b", Material.ENDER_EYE, Particle.REVERSE_PORTAL, Sound.ENTITY_EVOKER_CAST_SPELL,
+            "قبضة telekinesis", "تقتلع بلوكات العالم وتقذفها وتتحكم في حركة الخصوم باتجاه نظرك");
 
     public final String ar;
     public final String color;

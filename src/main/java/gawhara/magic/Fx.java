@@ -129,6 +129,8 @@ final class Fx {
                 dot(w, l, Particle.PORTAL, n, s, 0.15, null);
                 if (rnd() < 0.35) dot(w, l, Particle.TOTEM_OF_UNDYING, 1, s, 0.03, null);
             }
+            case MIND_CONTROL -> { dot(w, l, Particle.WITCH, n, s, .02, null); dot(w, l, Particle.ENCHANT, Math.max(1,n/2), s, .03, null); }
+            case TELEKINESIS -> { dot(w, l, Particle.REVERSE_PORTAL, n, s, .05, null); dot(w, l, Particle.END_ROD, Math.max(1,n/3), s, .02, null); }
         }
     }
 
@@ -337,6 +339,8 @@ final class Fx {
                 if (t == 0) circle(o.clone().add(0, 0.1, 0), 2.4 * sc, 28, 0,
                         l -> dot(w, l, Particle.TOTEM_OF_UNDYING, 2, 0.04, 0.02, null));
             });
+            case MIND_CONTROL -> run(plugin, p, 20, t -> { Location c = p.getLocation().add(0, 1, 0); double r = (0.4 + t * .07) * sc; circle(c, r, 18, t * .22, l -> dot(w, l, Particle.WITCH, 1, .02, .01, null)); circle(c.clone().add(0,.45,0), r*.65, 14, -t*.3, l -> dot(w,l,Particle.ENCHANT,1,.01,.01,null)); });
+            case TELEKINESIS -> run(plugin, p, 20, t -> { Location c = p.getLocation().add(0, 1, 0); for(int i=0;i<5;i++){ double a=t*.28+i*Math.PI*2/5; Location l=c.clone().add(Math.cos(a)*(1.0+.12*Math.sin(t*.2)), Math.sin(t*.18+i)*.45, Math.sin(a)*(1.0+.12*Math.sin(t*.2))); dot(w,l,Particle.REVERSE_PORTAL,3,.04,.02,null); dot(w,l,Particle.END_ROD,1,.02,.01,null); } });
         }
     }
 
@@ -378,6 +382,8 @@ final class Fx {
             case LIGHTNING, CRYSTAL -> 1.3;
             case SHADOW, NATURE -> -0.4;
             case SHAPESHIFT -> 0.2;
+            case MIND_CONTROL -> -0.7;
+            case TELEKINESIS -> 0.7;
         };
         run(plugin, p, 6, t -> {
             double a0 = -1.2 + t * 0.4;

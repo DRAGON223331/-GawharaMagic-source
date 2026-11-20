@@ -1,6 +1,6 @@
-# GawharaMagic 2.3.10 — Elemental Spinjitzu Tornado + Main-hand Air Cast
+# GawharaMagic 2.3.12 — Elemental Spinjitzu Tornado + Main-hand Air Cast
 
-## 2.3.10 — Elemental Spinjitzu
+## 2.3.12 — Elemental Spinjitzu
 - Reworked Spin from a one-time burst into a sustained, 3-strand elemental tornado wrapped around the player, with fast counter-rotating ground and crown rings.
 - Each element uses its own particle signature and receives a themed pulse effect (fire burns, water/earth slow, wind lifts, ice/crystal freeze-slow, etc.).
 - The spin pulses damage and knock back nearby enemies once per second by default. Players with the same element and spectators are excluded.
@@ -29,7 +29,7 @@
 - All 50 techniques of the selected element are unlocked immediately, with no leveling or secret trials required.
 - All ten Shapeshift forms are immediately available to OP without killing the corresponding mobs.
 - OP bypasses the level/reputation gates of the advanced power systems and continues to use abilities without mana costs.
-- OP can switch between all 13 elements with `/gmagic choose` (GUI) or `/gmagic element <ELEMENT>` without resetting saved progress.
+- OP can switch between all 15 elements with `/gmagic choose` (GUI) or `/gmagic element <ELEMENT>` without resetting saved progress.
 - Non-OP players retain the normal progression, trials, kill-to-learn forms, and mana requirements.
 
 ## Admin commands
@@ -233,7 +233,7 @@ The bounty board uses non-combat server contracts (mining, casting skills, and t
 ## Existing commands
 
 - `/gmagic` - status and help
-- `/gmagic powers` - list the 13 elements
+- `/gmagic powers` - list the 15 elements
 - `/gmagic task` - secret trial status
 - `/gmagic reset <player>` - admin reset
 - `/gmagic level <player> <1-100>` - admin level adjustment
@@ -298,10 +298,10 @@ The unarmed move costs 8 AuraSkills mana by default (configurable under `mana.ba
 
 ## 2.0.2 — Distinct Elemental Weapon Skills
 
-- Every one of the 13 elements now receives all five weapon tiers; the unarmed move remains available as an additional option.
+- Every one of the 15 elements now receives all five weapon tiers; the unarmed move remains available as an additional option.
 - Weapon tiers have different active styles: targeted slash, heavy area impact, ranged elemental arrow, wide cyclone, and tier-5 elemental burst.
 - Lightning weapons have five separate techniques: Spark Bolt, Thunder Chain, Lightning Arrow, Lightning Storm, and Thunder Judgment.
-- Elemental weapon hits now have distinct passive effects for all 13 elements, including chained lightning, freeze, poison, shadow wither, sound knockback, and crystal slow.
+- Elemental weapon hits now have distinct passive effects for all 15 elements, including chained lightning, freeze, poison, shadow wither, sound knockback, and crystal slow.
 - Weapon abilities spend AuraSkills mana (default 18, tier-scaled) and use longer cooldowns for higher tiers.
 - Weapon lore now describes its tier-specific technique. Normal chest/door/button interactions remain usable.
 
@@ -369,3 +369,13 @@ Every element has its own particle shape and texture (`Fx.java`), used by the em
 - Initially accepted right-click events from both hands when the offhand contained the Power Core.
 - Added a 5ms duplicate-event guard only to prevent one dual-hand packet from casting twice; it does not add an ability cooldown.
 - 2.3.9 replaces the offhand core with a main-hand core to make RIGHT_CLICK_AIR more dependable on Bedrock/Geyser clients.
+
+
+## العناصر الجديدة في 2.3.12
+
+- **التحكم بالعقل (Mind Control):** همس السيطرة، درع العقل، نبضة الإدراك، ثم سبع تقنيات إضافية تشمل رابطة الأوامر، الوهم، صدمة الإدراك، التنويم المؤقت، شبكة العقول وسيادة العقل. يتعزز في الأماكن المظلمة والكهوف العميقة.
+- **التحريك الذهني (Telekinesis):** قبضة الجذب، الرفع الذهني، قذف الطاقة، ثم سبع تقنيات إضافية تشمل جذب الأشياء، الدرع العائم، قبضة الجاذبية، مطر الصخور وانهيار الجاذبية. يتعزز قرب الكتل الصلبة والصخور.
+- كلا العنصرين مدمجان في اختيار العناصر، 50 مستوى حركة (حركة تُفتح كل مستوى حتى 50)، وتدرج القوة حتى 100، والمانا، وإعفاء OP، ولوحة Bedrock/الموبايل، وتعزيز البيئة، والدوران العنصري، والاختبارات والتحول الإداري.
+
+
+تحديث 2.3.12: التليكنيسيس يقتلع بلوكات آمنة من العالم بعد فحص BlockBreakEvent لاحترام إضافات الحماية، ثم يقذفها كمقذوفات؛ كما يتيح دفع الخصم في اتجاه نظر اللاعب بتكلفة مانا مرتفعة.

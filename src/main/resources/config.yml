@@ -1,4 +1,4 @@
-# GawharaMagic 2.3.10 - Elemental Spinjitzu, 50 move unlocks, evolved flight, environmental affinities,
+# GawharaMagic 2.3.11 - Elemental Spinjitzu, 50 move unlocks, evolved flight, environmental affinities,
 # no cooldowns, OP mana bypass, and Bedrock touch controls.
 # Spinjitzu-style elemental tornado. Re-activate the skill to stop it early.
 spin:
@@ -81,6 +81,7 @@ power:
     SOUND: [3, 5, 6, 5, 5, 4, 6, 6, 7, 10]
     CRYSTAL: [4, 5, 6, 5, 6, 6, 6, 7, 6, 10]
     SHAPESHIFT: [5, 9, 5, 6, 10, 12, 8, 9, 14, 8]
+    TELEKINESIS: [22, 32, 48, 16, 22, 28, 38, 30, 42, 55]
 
 
 # تقدم الحركات: حركة/تقنية جديدة عند كل مستوى من 1 إلى 50.
@@ -126,3 +127,5 @@ environmental-bonus:
     SOUND: 1.25
     CRYSTAL: 1.25
     SHAPESHIFT: 1.00
+    MIND_CONTROL: 1.30
+    TELEKINESIS: 1.30

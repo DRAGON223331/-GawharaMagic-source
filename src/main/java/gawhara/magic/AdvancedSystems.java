@@ -482,6 +482,8 @@ public final class AdvancedSystems implements Listener {
                 case METAL -> magic.addEnvironmentEffect(player, element, target,
                         PotionEffectType.SLOWNESS, 18 + tier * 3, 0);
                 case SHAPESHIFT -> { /* The learned form's own skills remain separate. */ }
+                case MIND_CONTROL -> { magic.addEnvironmentEffect(player, element, target, PotionEffectType.NAUSEA, 20 + tier * 4, 0); magic.addEnvironmentEffect(player, element, target, PotionEffectType.SLOWNESS, 45 + tier * 8, 1); }
+                case TELEKINESIS -> { Vector v = player.getLocation().toVector().subtract(target.getLocation().toVector()).normalize().multiply(.4 + tier * .05).setY(.2); target.setVelocity(magic.environmentVector(player, v)); }
             }
         }
     }
@@ -604,6 +606,8 @@ public final class AdvancedSystems implements Listener {
             case SOUND -> player.addPotionEffect(new PotionEffect(PotionEffectType.HASTE, duration, amplifier));
             case CRYSTAL -> player.addPotionEffect(new PotionEffect(PotionEffectType.ABSORPTION, duration, amplifier));
             case SHAPESHIFT -> player.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, duration, amplifier));
+            case MIND_CONTROL -> player.addPotionEffect(new PotionEffect(PotionEffectType.NIGHT_VISION, duration, 0));
+            case TELEKINESIS -> player.addPotionEffect(new PotionEffect(PotionEffectType.SLOW_FALLING, duration, 0));
         }
     }
 
@@ -1073,6 +1077,8 @@ public final class AdvancedSystems implements Listener {
             case SOUND -> "سيد الصدى";
             case CRYSTAL -> "التاج البلوري";
             case SHAPESHIFT -> "سيد الأشكال";
+            case MIND_CONTROL -> "العقل المهيمن";
+            case TELEKINESIS -> "سيد التحريك الذهني";
         };
     }
 

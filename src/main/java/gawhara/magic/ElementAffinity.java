@@ -48,6 +48,8 @@ final class ElementAffinity {
             case CRYSTAL -> nearby(player, 5, 3, ElementAffinity::isCrystalSource);
             // Shapeshift is driven by the collected forms, not a single natural element.
             case SHAPESHIFT -> false;
+            case MIND_CONTROL -> block.getLightLevel() <= 7 || biome.contains("DARK") || biome.contains("DEEP");
+            case TELEKINESIS -> nearby(player, 5, 3, m -> m.getType().isSolid() && m.getType().isBlock());
         };
     }
 
@@ -66,6 +68,8 @@ final class ElementAffinity {
             case SOUND -> "الكهوف العميقة أو قرب السكالك وبلوكات النوت";
             case CRYSTAL -> "بالقرب من الجيود وبلورات الأميثيست";
             case SHAPESHIFT -> "القوة تعتمد على الشكل الذي تتحول إليه";
+            case MIND_CONTROL -> "الأماكن الهادئة والمظلمة والكهوف العميقة";
+            case TELEKINESIS -> "بالقرب من الكتل الصلبة والصخور والمعادن";
         };
     }
 

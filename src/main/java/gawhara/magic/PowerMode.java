@@ -1,6 +1,7 @@
 package gawhara.magic;
 
 import net.kyori.adventure.title.Title;
+import org.bukkit.Bukkit;
 import org.bukkit.Color;
 import org.bukkit.FluidCollisionMode;
 import org.bukkit.GameMode;
@@ -15,6 +16,7 @@ import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Allay;
 import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.Entity;
+import org.bukkit.entity.FallingBlock;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Tameable;
@@ -146,6 +148,14 @@ final class PowerMode implements Listener {
                 new Ab("أنياب الاستدعاء", "قدرة إيفوكر: صف من الأنياب السحرية", 9),
                 new Ab("زفير التنين", "قدرة تنين الإند: كرة تنين وسحابة تنفس", 14),
                 new Ab("خطوة الفراغ", "قدرة إندرمان: انتقال خلف الهدف وضربة ظل", 8)});
+        ABS.put(Element.MIND_CONTROL, new Ab[]{
+                new Ab("همس السيطرة", "تربك هدفًا وتبطئ رد فعله", 4),
+                new Ab("درع العقل", "تركيز ذهني يقلل الضرر ويمنح مقاومة", 5),
+                new Ab("نبضة الإدراك", "موجة ذهنية تؤثر على الخصوم حولك", 7)});
+        ABS.put(Element.TELEKINESIS, new Ab[]{
+                new Ab("قذف البلوكات", "تقتلع بلوكًا من العالم وترميه في اتجاه نظرك كمقذوف مؤذٍ", 22),
+                new Ab("قبضة التحكم", "تمسك الخصم الذي تصوب عليه وتحركه في اتجاه نظرك", 32),
+                new Ab("وابل الصخور", "تقتلع عدة بلوكات وترميها تباعًا ناحية تصويبك", 48)});
         // أول 10 حركات أصلية، ثم 40 نسخة متطورة بميكانيكية إضافية خاصة بكل عنصر.
         for (Element e : Element.values()) {
             Ab[] base = ABS.get(e);
@@ -798,6 +808,8 @@ final class PowerMode implements Listener {
                 case SOUND -> switch (baseIndex) { case 0 -> shockwave(p, t); case 1 -> sonicBoom(p, t); default -> echo(p, t); };
                 case CRYSTAL -> switch (baseIndex) { case 0 -> shardVolley(p, t); case 1 -> prismShield(p, t); default -> crystalCage(p, t); };
                 case SHAPESHIFT -> false;
+                case MIND_CONTROL -> switch (baseIndex) { case 0 -> mindWhisper(p, t); case 1 -> mindShield(p, t); default -> mindPulse(p, t); };
+                case TELEKINESIS -> switch (baseIndex) { case 0 -> telekineticBlockThrow(p, t, 1); case 1 -> telekineticControl(p, t); default -> telekineticBlockThrow(p, t, Math.min(4, 2 + t / 3)); };
             };
         }
         if (success && ability.evolutionRank() > 0)
@@ -922,7 +934,132 @@ final class PowerMode implements Listener {
                 }
             }
             case SHAPESHIFT -> evolveForm(p, baseIndex, rank, tier, center, r);
+            case MIND_CONTROL -> evolveMind(p, rank, tier, center, r);
+            case TELEKINESIS -> evolveTelekinesis(p, rank, tier, center, r);
         }
+    }
+
+    private boolean mindWhisper(Player p, int tier) {
+        LivingEntity target = firstTarget(p, 14); if (target == null) return false;
+        effect(p, target, PotionEffectType.SLOWNESS, 65 + tier * 12, 2);
+        effect(p, target, PotionEffectType.NAUSEA, 45 + tier * 8, 0);
+        fx(target.getLocation().add(0, 1, 0), Particle.WITCH, 35 + tier * 5, .35, .5, .35);
+        hurt(p, target, 1.5 + tier * .6); return true;
+    }
+    private boolean mindShield(Player p, int tier) {
+        effect(p, p, PotionEffectType.RESISTANCE, 90 + tier * 15, 1);
+        effect(p, p, PotionEffectType.ABSORPTION, 100 + tier * 15, 1);
+        fx(p.getLocation().add(0, 1, 0), Particle.ENCHANT, 70 + tier * 8, 1, .8, 1);
+        return true;
+    }
+    private boolean mindPulse(Player p, int tier) {
+        Location c = p.getLocation(); fx(c, Particle.WITCH, 90 + tier * 12, 2.8, 1, 2.8);
+        for (LivingEntity target : foesAt(p, c, 4.5 + tier * .35)) { effect(p, target, PotionEffectType.SLOWNESS, 70 + tier * 10, 2); effect(p, target, PotionEffectType.NAUSEA, 60, 0); hurt(p, target, 2 + tier); }
+        return true;
+    }
+    /** يقتلع بلوكات آمنة بعد تمرير BlockBreakEvent حتى تحترم إضافات الحماية، ثم يقذفها كـ FallingBlock. */
+    private boolean telekineticBlockThrow(Player p, int tier, int count) {
+        Location eye = p.getEyeLocation();
+        Vector direction = eye.getDirection().normalize();
+        int launched = 0;
+        int wanted = Math.max(1, Math.min(5, count));
+        for (int n = 0; n < wanted; n++) {
+            RayTraceResult hit = p.getWorld().rayTraceBlocks(eye, direction, 12.0 + tier, FluidCollisionMode.NEVER, true);
+            if (hit == null || hit.getHitBlock() == null) break;
+            Block block = hit.getHitBlock();
+            Material type = block.getType();
+            if (!type.isSolid() || type.isAir() || type == Material.BEDROCK || type == Material.BARRIER
+                    || type == Material.END_PORTAL_FRAME || type == Material.END_PORTAL || type == Material.NETHER_PORTAL
+                    || block.getState() instanceof org.bukkit.block.TileState) break;
+            // لا نقتلع بلوكات من تحت العالم أو من مكان اللاعب نفسه.
+            if (block.getY() <= p.getWorld().getMinHeight() || block.getLocation().distanceSquared(p.getLocation()) < 2.25) break;
+            org.bukkit.event.block.BlockBreakEvent breakEvent = new org.bukkit.event.block.BlockBreakEvent(block, p);
+            Bukkit.getPluginManager().callEvent(breakEvent);
+            if (breakEvent.isCancelled()) {
+                p.sendActionBar(Magic.c("§cالبلوك ده محمي ومش ممكن تحريكه."));
+                break;
+            }
+            org.bukkit.block.data.BlockData data = block.getBlockData().clone();
+            block.setType(Material.AIR, false);
+            Location spawn = block.getLocation().add(.5, .35, .5);
+            FallingBlock projectile = p.getWorld().spawnFallingBlock(spawn, data);
+            projectile.setDropItem(false);
+            projectile.setHurtEntities(true);
+            projectile.setDamagePerBlock(2.5f + tier * .35f);
+            projectile.setMaxDamage(8 + tier);
+            projectile.setVelocity(direction.clone().multiply(1.05 + tier * .10).setY(direction.getY() * .75 + .18));
+            launched++;
+            // ازاحة نقطة التصويب قليلًا للعثور على بلوك خلف الأول في وابل الصخور.
+            eye = eye.clone().add(direction.clone().multiply(1.15));
+        }
+        if (launched > 0) {
+            p.getWorld().playSound(p.getLocation(), Sound.ENTITY_EVOKER_CAST_SPELL, 1.0f, .65f + tier * .04f);
+            p.getWorld().spawnParticle(Particle.REVERSE_PORTAL, p.getEyeLocation(), 22 + launched * 8, .35, .3, .35, .04);
+            return true;
+        }
+        p.sendActionBar(Magic.c("§cبص على بلوك صلب قريب عشان تقدر ترفعه."));
+        return false;
+    }
+
+    /** يحرك الخصم الذي يقع مباشرة في خط نظر اللاعب، مع استهلاك مانا مرتفع من تكلفة القدرة. */
+    private boolean telekineticControl(Player p, int tier) {
+        RayTraceResult trace = p.getWorld().rayTraceEntities(p.getEyeLocation(), p.getEyeLocation().getDirection(),
+                18.0, .85, entity -> entity instanceof LivingEntity living && ok(p, living));
+        if (trace == null || !(trace.getHitEntity() instanceof LivingEntity target)) {
+            p.sendActionBar(Magic.c("§cصوّب مباشرة على خصم عشان تمسكه بالتحريك الذهني."));
+            return false;
+        }
+        target.addPotionEffect(new PotionEffect(PotionEffectType.SLOW_FALLING, 45, 0, true, false, true));
+        p.getWorld().playSound(target.getLocation(), Sound.ENTITY_ENDERMAN_TELEPORT, .7f, .65f);
+        // قبضة مستمرة لثانية ونصف: اتجاه حركة الخصم يتحدث كل تيك حسب اتجاه نظر اللاعب.
+        new BukkitRunnable() {
+            private int ticks;
+            @Override public void run() {
+                if (!p.isOnline() || p.isDead() || !target.isValid() || target.isDead()
+                        || !p.getWorld().equals(target.getWorld()) || ticks++ >= 30) {
+                    cancel();
+                    return;
+                }
+                Vector direction = p.getEyeLocation().getDirection().normalize();
+                Vector velocity = direction.multiply(1.0 + Math.min(1.0, tier * .08));
+                velocity.setY(Math.max(-.65, Math.min(.9, velocity.getY())));
+                target.setVelocity(magic.environmentVector(p, velocity));
+                target.setFallDistance(0);
+                target.getWorld().spawnParticle(Particle.REVERSE_PORTAL,
+                        target.getLocation().add(0, 1, 0), 5 + tier, .22, .35, .22, .025);
+            }
+        }.runTaskTimer(magic, 0L, 1L);
+        return true;
+    }
+
+    private boolean telePull(Player p, int tier) {
+        LivingEntity target = firstTarget(p, 16); if (target == null) return false;
+        Vector v = p.getLocation().toVector().subtract(target.getLocation().toVector()).normalize().multiply(.8 + tier * .08).setY(.25);
+        target.setVelocity(magic.environmentVector(p, v)); fx(target.getLocation(), Particle.REVERSE_PORTAL, 35, .4, .5, .4); return true;
+    }
+    private boolean teleLift(Player p, int tier) {
+        LivingEntity target = firstTarget(p, 16); if (target == null) return false;
+        target.setVelocity(new Vector(0, .8 + tier * .08, 0)); effect(p, target, PotionEffectType.SLOW_FALLING, 35, 0);
+        fx(target.getLocation(), Particle.REVERSE_PORTAL, 45, .5, .7, .5); return true;
+    }
+    private boolean teleThrow(Player p, int tier) {
+        int count = 0; for (LivingEntity target : foesAt(p, p.getLocation(), 5 + tier * .3)) {
+            Vector v = target.getLocation().toVector().subtract(p.getLocation().toVector()).normalize().multiply(1.0 + tier * .1).setY(.55);
+            target.setVelocity(magic.environmentVector(p, v)); hurt(p, target, 2 + tier); count++;
+        }
+        fx(p.getLocation(), Particle.REVERSE_PORTAL, 90, 2, 1, 2); return count > 0;
+    }
+    private void evolveMind(Player p, int rank, int tier, Location center, double radius) {
+        if (rank == 1) { effect(p, p, PotionEffectType.RESISTANCE, 70 + tier * 8, 0); fx(center, Particle.ENCHANT, 55, 1, .6, 1); }
+        else if (rank == 2) { for (LivingEntity e : foesAt(p, center, radius + 1)) effect(p, e, PotionEffectType.SLOWNESS, 70 + rank * 20, 2); }
+        else if (rank == 3) { effect(p, p, PotionEffectType.INVISIBILITY, 45, 0); fx(center, Particle.WITCH, 70, 1.2, .8, 1.2); }
+        else { for (LivingEntity e : foesAt(p, center, radius + 2)) { hurt(p, e, 4 + tier); effect(p, e, PotionEffectType.NAUSEA, 90, 0); } }
+    }
+    private void evolveTelekinesis(Player p, int rank, int tier, Location center, double radius) {
+        if (rank == 1) { effect(p, p, PotionEffectType.RESISTANCE, 80, 0); fx(center, Particle.REVERSE_PORTAL, 55, 1, .7, 1); }
+        else if (rank == 2) { for (LivingEntity e : foesAt(p, center, radius + 1)) e.setVelocity(new Vector(0, .65, 0)); }
+        else if (rank == 3) { effect(p, p, PotionEffectType.SLOW_FALLING, 100, 0); effect(p, p, PotionEffectType.JUMP_BOOST, 100, 1); }
+        else { for (LivingEntity e : foesAt(p, center, radius + 2)) { Vector v = center.toVector().subtract(e.getLocation().toVector()).normalize().multiply(.9).setY(.5); e.setVelocity(magic.environmentVector(p, v)); hurt(p, e, 4 + tier); } }
     }
 
     private void evolveForm(Player p, int form, int rank, int tier, Location center, double radius) {
@@ -2008,6 +2145,8 @@ final class PowerMode implements Listener {
             case SOUND -> { effect(p, t, PotionEffectType.NAUSEA, 60, 0); magic.push(p, t, p.getLocation(), 0.6, 0.2); }
             case CRYSTAL -> effect(p, t, PotionEffectType.SLOWNESS, 60, 1);
             case SHAPESHIFT -> { if (magic.shapeshift != null) magic.shapeshift.onMelee(p, t, tier); }
+            case MIND_CONTROL -> { effect(p, t, PotionEffectType.SLOWNESS, 45 + tier * 8, 1); effect(p, t, PotionEffectType.NAUSEA, 35, 0); }
+            case TELEKINESIS -> { Vector pull = p.getLocation().toVector().subtract(t.getLocation().toVector()).normalize().multiply(.45 + tier * .08).setY(.18); t.setVelocity(magic.environmentVector(p, pull)); }
         }
     }
 }

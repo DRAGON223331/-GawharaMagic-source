@@ -153,6 +153,24 @@ final class Moves {
                 new Mv("خطوة التشظي", "تتشظى إلى نقطة أمامك وتترك شظايا خلفك", 6, Moves::crystalShatterstep),
                 new Mv("إزهار الماس", "زهرة بلورية تتفتح طبقة بعد طبقة وتطلق شظايا", 10, Moves::crystalDiamondBloom)
         });
+        MV.put(Element.MIND_CONTROL, new Mv[]{
+                new Mv("القراءة الذهنية", "تلتقط أفكار الهدف وتربك إدراكه", 4, (e,p,t) -> e.mindMove(p,t,0)),
+                new Mv("رابطة الأوامر", "تربط عدة خصوم بعلامة ذهنية واحدة", 5, (e,p,t) -> e.mindMove(p,t,1)),
+                new Mv("وهم الذات", "تخفي وجودك وتترك صورة ذهنية مضللة", 5, (e,p,t) -> e.mindMove(p,t,2)),
+                new Mv("صدمة الإدراك", "تطلق نبضة تربك وتؤذي من أمامك", 6, (e,p,t) -> e.mindMove(p,t,3)),
+                new Mv("تنويم مؤقت", "توقف هدفًا للحظة بتأثير ذهني", 7, (e,p,t) -> e.mindMove(p,t,4)),
+                new Mv("شبكة العقول", "توزع تأثير الإبطاء بين عدة أهداف", 8, (e,p,t) -> e.mindMove(p,t,5)),
+                new Mv("سيادة العقل", "تجمع الخصوم في دائرة وتطلق موجة ذهنية", 10, (e,p,t) -> e.mindMove(p,t,6))
+        });
+        MV.put(Element.TELEKINESIS, new Mv[]{
+                new Mv("جذب الأشياء", "تسحب أقرب خصم نحوك", 4, (e,p,t) -> e.telekinesisMove(p,t,0)),
+                new Mv("مدار الأجسام", "ترفع هدفًا في الهواء وتعلّقه قبل إسقاطه", 5, (e,p,t) -> e.telekinesisMove(p,t,1)),
+                new Mv("قذف عنيف", "تقذف هدفًا بعيدًا في اتجاه نظرك", 5, (e,p,t) -> e.telekinesisMove(p,t,2)),
+                new Mv("درع عائم", "تدور حولك طاقة تحميك", 6, (e,p,t) -> e.telekinesisMove(p,t,3)),
+                new Mv("قبضة الجاذبية", "تثبت عدة خصوم في مكانهم", 7, (e,p,t) -> e.telekinesisMove(p,t,4)),
+                new Mv("مطر الصخور", "ترفع الأهداف وتسقطها بقوة", 8, (e,p,t) -> e.telekinesisMove(p,t,5)),
+                new Mv("انهيار الجاذبية", "تسحب الأهداف لمركز واحد ثم تقذفها", 10, (e,p,t) -> e.telekinesisMove(p,t,6))
+        });
         // Shapeshift owns ten native form abilities; it has no generic extra-move templates.
         MV.put(Element.SHAPESHIFT, new Mv[0]);
 
@@ -2179,6 +2197,54 @@ final class Moves {
                 }
             }
         }.runTaskTimer(magic, 0L, 4L);
+        return true;
+    }
+
+
+    private boolean mindMove(Player p, int tier, int mode) {
+        List<LivingEntity> targets = foes(p, p.getLocation(), 7.0 + tier);
+        if (mode == 0 || mode == 4) {
+            LivingEntity target = target(p, 12);
+            if (target == null) return false;
+            target.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 45 + tier * 12, mode == 4 ? 8 : 1));
+            if (mode == 4) target.addPotionEffect(new PotionEffect(PotionEffectType.NAUSEA, 50 + tier * 10, 0));
+            fx(target.getLocation().add(0, 1, 0), Particle.WITCH, 18 + tier * 4, .3, .4, .3, .02);
+            hurt(p, target, mode == 4 ? 2 + tier : 1 + tier * .4);
+            return true;
+        }
+        if (mode == 2) {
+            p.addPotionEffect(new PotionEffect(PotionEffectType.INVISIBILITY, 50 + tier * 8, 0));
+            p.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, 50 + tier * 8, 1));
+            fx(p.getLocation(), Particle.WITCH, 45 + tier * 5, 1, .7, 1, .02);
+            return true;
+        }
+        for (LivingEntity target : targets) {
+            if (mode == 1 || mode == 5) target.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 60 + tier * 12, mode == 5 ? 2 : 1));
+            else if (mode == 3) { hurt(p, target, 2 + tier); target.addPotionEffect(new PotionEffect(PotionEffectType.NAUSEA, 50, 0)); }
+            else if (mode == 6) { target.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 80, 3)); hurt(p, target, 3 + tier); }
+            fx(target.getLocation().add(0, 1, 0), Particle.WITCH, 8 + tier * 2, .25, .4, .25, .02);
+        }
+        p.getWorld().playSound(p.getLocation(), Sound.ENTITY_ILLUSIONER_CAST_SPELL, 1, 1.2f);
+        return !targets.isEmpty() || mode == 6;
+    }
+
+    private boolean telekinesisMove(Player p, int tier, int mode) {
+        List<LivingEntity> targets = foes(p, p.getLocation(), 8.0 + tier);
+        LivingEntity target = target(p, 16);
+        if ((mode == 0 || mode == 1 || mode == 2) && target == null) return false;
+        if (mode == 0) applyVelocity(p, target, p.getLocation().toVector().subtract(target.getLocation().toVector()).normalize().multiply(.65 + tier * .08).setY(.25));
+        else if (mode == 1) { target.setVelocity(new Vector(0, .75 + tier * .08, 0)); target.addPotionEffect(new PotionEffect(PotionEffectType.SLOW_FALLING, 35, 0)); }
+        else if (mode == 2) { Vector v = p.getLocation().getDirection().normalize().multiply(1.1 + tier * .12).setY(.55); applyVelocity(p, target, v); hurt(p, target, 2 + tier); }
+        else if (mode == 3) { p.addPotionEffect(new PotionEffect(PotionEffectType.RESISTANCE, 70 + tier * 12, 1)); fx(p.getLocation(), Particle.REVERSE_PORTAL, 55 + tier * 8, 1.2, .8, 1.2, .08); }
+        else {
+            for (LivingEntity foe : targets) {
+                if (mode == 4) { foe.setVelocity(new Vector(0, .25, 0)); foe.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 65, 5)); }
+                else if (mode == 5) { foe.setVelocity(new Vector(0, .8 + tier * .06, 0)); hurt(p, foe, 2 + tier); }
+                else { Vector pull = p.getLocation().toVector().subtract(foe.getLocation().toVector()).normalize().multiply(.85).setY(.55); applyVelocity(p, foe, pull); hurt(p, foe, 3 + tier); }
+                fx(foe.getLocation(), Particle.REVERSE_PORTAL, 12 + tier * 2, .3, .4, .3, .03);
+            }
+        }
+        p.getWorld().playSound(p.getLocation(), Sound.ENTITY_EVOKER_CAST_SPELL, 1, .8f + tier * .05f);
         return true;
     }
 }
