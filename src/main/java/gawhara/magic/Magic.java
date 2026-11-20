@@ -1234,6 +1234,10 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
         target.damage(damage * environmentMultiplier(caster, element), caster);
     }
 
+    Vector environmentVector(Player caster, Vector velocity) {
+        return velocity.clone().multiply(environmentMultiplier(caster));
+    }
+
     void elementalVelocity(Player caster, org.bukkit.entity.Entity target, Vector velocity) {
         elementalVelocity(caster, getEl(caster), target, velocity);
     }

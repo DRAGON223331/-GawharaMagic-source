@@ -1023,7 +1023,7 @@ final class PowerMode implements Listener {
                 Vector direction = p.getEyeLocation().getDirection().normalize();
                 Vector velocity = direction.multiply(1.0 + Math.min(1.0, tier * .08));
                 velocity.setY(Math.max(-.65, Math.min(.9, velocity.getY())));
-                target.setVelocity(magic.environmentVector(p, velocity));
+                target.setVelocity(environmentVector(p, velocity));
                 target.setFallDistance(0);
                 target.getWorld().spawnParticle(Particle.REVERSE_PORTAL,
                         target.getLocation().add(0, 1, 0), 5 + tier, .22, .35, .22, .025);
@@ -1035,7 +1035,7 @@ final class PowerMode implements Listener {
     private boolean telePull(Player p, int tier) {
         LivingEntity target = firstTarget(p, 16); if (target == null) return false;
         Vector v = p.getLocation().toVector().subtract(target.getLocation().toVector()).normalize().multiply(.8 + tier * .08).setY(.25);
-        target.setVelocity(magic.environmentVector(p, v)); fx(target.getLocation(), Particle.REVERSE_PORTAL, 35, .4, .5, .4); return true;
+        target.setVelocity(environmentVector(p, v)); fx(target.getLocation(), Particle.REVERSE_PORTAL, 35, .4, .5, .4); return true;
     }
     private boolean teleLift(Player p, int tier) {
         LivingEntity target = firstTarget(p, 16); if (target == null) return false;
@@ -1045,7 +1045,7 @@ final class PowerMode implements Listener {
     private boolean teleThrow(Player p, int tier) {
         int count = 0; for (LivingEntity target : foesAt(p, p.getLocation(), 5 + tier * .3)) {
             Vector v = target.getLocation().toVector().subtract(p.getLocation().toVector()).normalize().multiply(1.0 + tier * .1).setY(.55);
-            target.setVelocity(magic.environmentVector(p, v)); hurt(p, target, 2 + tier); count++;
+            target.setVelocity(environmentVector(p, v)); hurt(p, target, 2 + tier); count++;
         }
         fx(p.getLocation(), Particle.REVERSE_PORTAL, 90, 2, 1, 2); return count > 0;
     }
@@ -1059,7 +1059,7 @@ final class PowerMode implements Listener {
         if (rank == 1) { effect(p, p, PotionEffectType.RESISTANCE, 80, 0); fx(center, Particle.REVERSE_PORTAL, 55, 1, .7, 1); }
         else if (rank == 2) { for (LivingEntity e : foesAt(p, center, radius + 1)) e.setVelocity(new Vector(0, .65, 0)); }
         else if (rank == 3) { effect(p, p, PotionEffectType.SLOW_FALLING, 100, 0); effect(p, p, PotionEffectType.JUMP_BOOST, 100, 1); }
-        else { for (LivingEntity e : foesAt(p, center, radius + 2)) { Vector v = center.toVector().subtract(e.getLocation().toVector()).normalize().multiply(.9).setY(.5); e.setVelocity(magic.environmentVector(p, v)); hurt(p, e, 4 + tier); } }
+        else { for (LivingEntity e : foesAt(p, center, radius + 2)) { Vector v = center.toVector().subtract(e.getLocation().toVector()).normalize().multiply(.9).setY(.5); e.setVelocity(environmentVector(p, v)); hurt(p, e, 4 + tier); } }
     }
 
     private void evolveForm(Player p, int form, int rank, int tier, Location center, double radius) {
@@ -1244,6 +1244,11 @@ final class PowerMode implements Listener {
 
     void fx(Location l, Particle pt, int n, double spread, double speed) {
         l.getWorld().spawnParticle(pt, l, n, spread, spread, spread, speed);
+    }
+
+    // Rectangular particle spread for effects that need a wider vertical or horizontal shape.
+    void fx(Location l, Particle pt, int n, double spreadX, double spreadY, double spreadZ) {
+        l.getWorld().spawnParticle(pt, l, n, spreadX, spreadY, spreadZ, 0.03);
     }
 
     void snd(Location l, Sound s, float pitch) {
@@ -2146,7 +2151,7 @@ final class PowerMode implements Listener {
             case CRYSTAL -> effect(p, t, PotionEffectType.SLOWNESS, 60, 1);
             case SHAPESHIFT -> { if (magic.shapeshift != null) magic.shapeshift.onMelee(p, t, tier); }
             case MIND_CONTROL -> { effect(p, t, PotionEffectType.SLOWNESS, 45 + tier * 8, 1); effect(p, t, PotionEffectType.NAUSEA, 35, 0); }
-            case TELEKINESIS -> { Vector pull = p.getLocation().toVector().subtract(t.getLocation().toVector()).normalize().multiply(.45 + tier * .08).setY(.18); t.setVelocity(magic.environmentVector(p, pull)); }
+            case TELEKINESIS -> { Vector pull = p.getLocation().toVector().subtract(t.getLocation().toVector()).normalize().multiply(.45 + tier * .08).setY(.18); t.setVelocity(environmentVector(p, pull)); }
         }
     }
 }

@@ -1,4 +1,4 @@
-# GawharaMagic 2.3.12 — Elemental Spinjitzu Tornado + Main-hand Air Cast
+# GawharaMagic 2.3.13 — Elemental Spinjitzu Tornado + Main-hand Air Cast
 
 ## 2.3.12 — Elemental Spinjitzu
 - Reworked Spin from a one-time burst into a sustained, 3-strand elemental tornado wrapped around the player, with fast counter-rotating ground and crown rings.
@@ -379,3 +379,8 @@ Every element has its own particle shape and texture (`Fx.java`), used by the em
 
 
 تحديث 2.3.12: التليكنيسيس يقتلع بلوكات آمنة من العالم بعد فحص BlockBreakEvent لاحترام إضافات الحماية، ثم يقذفها كمقذوفات؛ كما يتيح دفع الخصم في اتجاه نظر اللاعب بتكلفة مانا مرتفعة.
+
+
+## 2.3.13 — Build compatibility fixes
+
+إصلاح توافق دوال الجسيمات واتجاهات الحركة مع توقيعات الكود، وإصلاح فحص Material في نظام الانسجام البيئي، وإضافة واجهة environmentVector المشتركة لاستخدامها من الأنظمة المختلفة.

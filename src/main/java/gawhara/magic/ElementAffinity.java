@@ -49,7 +49,7 @@ final class ElementAffinity {
             // Shapeshift is driven by the collected forms, not a single natural element.
             case SHAPESHIFT -> false;
             case MIND_CONTROL -> block.getLightLevel() <= 7 || biome.contains("DARK") || biome.contains("DEEP");
-            case TELEKINESIS -> nearby(player, 5, 3, m -> m.getType().isSolid() && m.getType().isBlock());
+            case TELEKINESIS -> nearby(player, 5, 3, m -> m.isSolid() && m.isBlock());
         };
     }
 
