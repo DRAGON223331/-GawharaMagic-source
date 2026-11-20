@@ -1852,10 +1852,12 @@ final class Moves {
     private boolean soundMotionResonance(Player p, int tier) {
         LivingEntity victim = target(p, 17);
         if (victim == null) { status(p, "§cلا يوجد هدف للرنين"); return false; }
-        Location last = victim.getLocation().clone();
         sound(victim.getLocation(), Sound.BLOCK_NOTE_BLOCK_BELL, 0.7f);
         new BukkitRunnable() {
             int n = 0;
+            // Keep the moving target's previous position as task state, not a reassigned local captured by the inner class.
+            private Location last = victim.getLocation().clone();
+
             @Override public void run() {
                 if (!p.isOnline() || victim.isDead() || n++ >= 45) { cancel(); return; }
                 Location now = victim.getLocation();
