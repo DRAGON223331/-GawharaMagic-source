@@ -29,7 +29,9 @@ public enum Element {
     SOUND("الصوت", "§d", Material.NOTE_BLOCK, Particle.NOTE, Sound.BLOCK_NOTE_BLOCK_CHIME,
             "الموجة الصوتية", "موجة صوتية تدفع الخصوم بعيدًا"),
     CRYSTAL("الكريستال", "§3", Material.AMETHYST_SHARD, Particle.END_ROD, Sound.BLOCK_AMETHYST_BLOCK_CHIME,
-            "شظايا البلور", "شظايا حادة تصيب الأهداف وتبطّئها");
+            "شظايا البلور", "شظايا حادة تصيب الأهداف وتبطّئها"),
+    SHAPESHIFT("التحول", "§d", Material.DRAGON_EGG, Particle.PORTAL, Sound.ENTITY_ENDERMAN_TELEPORT,
+            "التحول إلى الكائنات", "اقتل الكائنات العشرة لتتعلم أشكالها وقدراتها؛ كل مستوى يفتح خانة جديدة حتى 10 أشكال");
 
     public final String ar;
     public final String color;

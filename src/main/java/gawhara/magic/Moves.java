@@ -152,6 +152,9 @@ final class Moves {
                 new Mv("خطوة التشظي", "تتشظى إلى نقطة أمامك وتترك شظايا خلفك", 6, 15, Moves::crystalShatterstep),
                 new Mv("إزهار الماس", "زهرة بلورية تتفتح طبقة بعد طبقة وتطلق شظايا", 10, 48, Moves::crystalDiamondBloom)
         });
+        // Shapeshift owns ten native form abilities; it has no generic extra-move templates.
+        MV.put(Element.SHAPESHIFT, new Mv[0]);
+
     }
 
     private final PowerMode pm;

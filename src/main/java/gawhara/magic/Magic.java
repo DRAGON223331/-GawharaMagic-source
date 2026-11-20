@@ -54,7 +54,7 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
     static final int MAX_LEVEL = 100;
     static final int TOTAL_TRIALS = 20;
     static final int[] FIRST_LEVELS = {0, 20, 60, 130, 250};
-    static final int[] SLOTS = {10, 11, 12, 13, 14, 15, 16, 19, 20, 21, 22, 23};
+    static final int[] SLOTS = {10, 11, 12, 13, 14, 15, 16, 19, 20, 21, 22, 23, 24};
 
     enum TrialKind {
         FIRE_GLOW, FIRE_LIGHTS,
@@ -86,6 +86,7 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
     final Map<UUID, Long> unarmedCd = new HashMap<>();
     AdvancedSystems advanced;
     PowerMode power;
+    ShapeshiftSystem shapeshift;
 
     static Component c(String s) {
         return LegacyComponentSerializer.legacySection().deserialize(s).decoration(TextDecoration.ITALIC, false);
@@ -106,6 +107,8 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
         advanced.enable();
         power = new PowerMode(this);
         power.enable();
+        shapeshift = new ShapeshiftSystem(this);
+        shapeshift.enable();
         getCommand("gmagic").setExecutor(this);
         getCommand("grestore").setExecutor(this);
 
@@ -146,6 +149,7 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
     @Override
     public void onDisable() {
         if (power != null) power.shutdown();
+        if (shapeshift != null) shapeshift.shutdown();
         if (advanced != null) advanced.shutdown();
         save();
     }
@@ -312,6 +316,13 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
                         case 2 -> "دع الكريستال يلمع بقوتك مرة أخرى.";
                         default -> "أثبت أن إرادتك أصلب من البلور.";
                     });
+            case SHAPESHIFT -> new Trial(TrialKind.ELEMENT_MASTERY, 2 + difficulty,
+                    switch (phase) {
+                        case 0 -> "تعلّم شكلًا جديدًا من الكائنات العشرة، ثم أطلق قدرته.";
+                        case 1 -> "بدّل بين أشكالك المكتسبة واستخدم قدرة كل شكل.";
+                        case 2 -> "أثبت أنك أتقنت التحول باختيار شكل جديد واستخدامه.";
+                        default -> "اجمع الأشكال وبدّل بينها لتثبت سيطرتك على التحول.";
+                    });
         };
     }
 
@@ -464,8 +475,14 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
             lore.add(c("§7" + el.desc));
             lore.add(c(" "));
             lore.add(c("§eالقدرة: " + el.color + el.ability));
-            lore.add(c("§7اختبارات سرية كل 5 مستويات حتى لفل 100"));
-            lore.add(c("§7اجمع النقاط من اللعب وافتح المستويات بالتدريج"));
+            if (el == Element.SHAPESHIFT) {
+                lore.add(c("§dكل لفل يفتح خانة شكل جديدة حتى 10 أشكال"));
+                lore.add(c("§7اقتُل سبايدر أو كريبر أو أحد الكائنات المحددة لتتعلم شكله"));
+                lore.add(c("§7كل شكل له قدرة قتالية مستقلة"));
+            } else {
+                lore.add(c("§7اختبارات سرية كل 5 مستويات حتى لفل 100"));
+                lore.add(c("§7اجمع النقاط من اللعب وافتح المستويات بالتدريج"));
+            }
             lore.add(c(" "));
             lore.add(c("§a▶ اضغط عشان تختارها (مرة واحدة بس)"));
             m.lore(lore);
@@ -505,8 +522,12 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
         if (!isUnarmedOnly(el)) giveWeapon(p, el, 1);
         p.sendMessage(c("§6✦ §fاتعلمت قوة " + el.color + el.ar + "§f! اجمع النقاط من اللعب، واكتشف الاختبارات السرية."));
         p.sendMessage(c("§eوضع القوة: اضغط §fF §eللتفعيل | سكرول للتبديل | كليك يمين للاستخدام | كليك شمال للضرب بقوتك."));
-        p.sendMessage(c("§7حركتك الحالية: " + el.color + unarmedMoveName(el) + " §8| §7تتطور كل 20 لفل."));
-        p.sendMessage(c("§7اكتب §e/gmagic powers §7لرؤية وصف القوى الاثنتي عشرة."));
+        p.sendMessage(c("§7حركتك الحالية: " + el.color + unarmedMoveName(el) + " §8| §7تتطور مع المستوى."));
+        if (el == Element.SHAPESHIFT) {
+            p.sendMessage(c("§dاقتل الكائنات العشرة لتتعلم أشكالها. استخدم §e/gmagic forms §dلعرض سجل التحول."));
+            p.sendMessage(c("§7كل مستوى يفتح خانة إضافية؛ الحد الأقصى 10 أشكال."));
+        }
+        p.sendMessage(c("§7اكتب §e/gmagic powers §7لرؤية وصف القوى الثلاث عشرة."));
         p.showTitle(net.kyori.adventure.title.Title.title(
                 c(el.color + "✦ قوة " + el.ar + " ✦"), c("§7قوتك وحركتك بدون سلاح جاهزين")));
         celebrate(p, el);
@@ -677,6 +698,7 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
                 }
             }
             p.sendMessage(c("§6✦ §fارتفع مستواك إلى §e" + newLevel + "§f!"));
+            if (shapeshift != null) shapeshift.onLevelUp(p, oldLevel, newLevel);
             p.showTitle(net.kyori.adventure.title.Title.title(
                     c("§6✦ لفل " + newLevel + " ✦"), c(el.color + "قوة " + el.ar)));
             if (newLevel == cap && completedTrials(p) < TOTAL_TRIALS) showTrialHint(p);
@@ -805,6 +827,10 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
                 world.spawnParticle(Particle.BLOCK, at, 10 + tier * 3, 0.2, 0.3, 0.2, 0.08,
                         Material.AMETHYST_BLOCK.createBlockData());
                 world.spawnParticle(Particle.END_ROD, at, 3 + tier, 0.12, 0.2, 0.12, 0.02);
+            }
+            case SHAPESHIFT -> {
+                target.addPotionEffect(new PotionEffect(PotionEffectType.WEAKNESS, 20 + tier * 8, 0));
+                world.spawnParticle(Particle.PORTAL, at, 8 + tier * 2, 0.2, 0.3, 0.2, 0.04);
             }
         }
     }
@@ -970,6 +996,7 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
             case LIGHT -> "وميض النور";
             case SOUND -> "الموجة الصوتية";
             case CRYSTAL -> "شظايا البلور";
+            case SHAPESHIFT -> "قدرة الشكل المختار";
         };
     }
 
@@ -989,6 +1016,10 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
     }
 
     void unarmedAbility(Player p, Element el) {
+        if (el == Element.SHAPESHIFT && power != null) {
+            power.useSelected(p);
+            return;
+        }
         int tier = unarmedTier(p);
         long now = System.currentTimeMillis();
         Long ready = unarmedCd.get(p.getUniqueId());
@@ -1186,6 +1217,7 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
                                 0.25, 0.4, 0.25, 0.08, Material.AMETHYST_BLOCK.createBlockData());
                     }
                 }
+                case SHAPESHIFT -> { /* Routed through PowerMode above. */ }
             }
         } finally {
             inAbility = false;
@@ -1479,6 +1511,7 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
                     default -> { ring(origin, Particle.BLOCK, Material.AMETHYST_BLOCK.createBlockData(), 10.0, 13); hitArea(player, weapon, origin, damage + 3.9, 10.0, 10, 0.48, 0.2); world.spawnParticle(Particle.END_ROD, origin.clone().add(0, 1, 0), 100, 2.0, 1.3, 2.0, 0.06); player.addPotionEffect(new PotionEffect(PotionEffectType.ABSORPTION, 180, 1)); }
                 }
             }
+            case SHAPESHIFT -> { /* Shapeshift is an unarmed school; no weapon skills are issued. */ }
         }
     }
 
@@ -1782,9 +1815,10 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
             return true;
         }
         if (el == null) { openGui(p); return true; }
+        if (shapeshift != null && shapeshift.handleCommand(p, a)) return true;
         if (power != null && power.handleCommand(p, a)) return true;
         if (a.length >= 1 && a[0].equalsIgnoreCase("powers")) {
-            p.sendMessage(c("§6✦ §eمدارس القوى الاثنتا عشرة في GawharaMagic"));
+            p.sendMessage(c("§6✦ §eمدارس القوى الثلاث عشرة في GawharaMagic"));
             for (Element power : Element.values()) {
                 p.sendMessage(c(power.color + "✦ " + power.ar + " §7— " + power.ability + "§8: " + power.desc));
             }
@@ -1807,7 +1841,8 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
             p.sendMessage(c("§7الاختبار السري القادم عند لفل §e" + ((completedTrials(p) + 1) * 5)));
         p.sendMessage(c("§b⚡ وضع القوة: §fF §7تفعيل/إيقاف | §fسكرول §7تبديل | §fكليك يمين §7استخدام | §fكليك شمال §7ضربة بقوتك"));
         p.sendMessage(c("§7/gwm pw ← تفعيل/إيقاف | /gwm next|prev|use | /gwm ab ← قدراتك"));
-        p.sendMessage(c("§7/gmagic powers ← عرض القوى الاثنتي عشرة"));
+        p.sendMessage(c("§7/gmagic powers ← عرض القوى الثلاث عشرة"));
+        if (el == Element.SHAPESHIFT) p.sendMessage(c("§d/gmagic forms ← سجل الأشكال التي تعلمتها"));
         p.sendMessage(c("§7/gmagic task ← تلميح الاختبار السري"));
         p.sendMessage(c("§b/gwm m §7← حركة العنصر بدون سلاح | أو Shift + كليك يمين في الهواء/بلوك عادي"));
         p.sendMessage(c("§b/gwm s §7← الدوران (Shift + كليك شمال) | §b/gwm g §7← الدرع (Shift + F)"));

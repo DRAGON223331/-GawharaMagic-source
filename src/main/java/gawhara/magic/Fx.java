@@ -125,6 +125,10 @@ final class Fx {
                 dot(w, l, Particle.DUST_COLOR_TRANSITION, n, s, 0, fade(0xB06CFF, 0x4FF3FF, 1.2f));
                 if (rnd() < 0.3) dot(w, l, Particle.END_ROD, 1, s, 0.01, null);
             }
+            case SHAPESHIFT -> {
+                dot(w, l, Particle.PORTAL, n, s, 0.15, null);
+                if (rnd() < 0.35) dot(w, l, Particle.TOTEM_OF_UNDYING, 1, s, 0.03, null);
+            }
         }
     }
 
@@ -322,6 +326,17 @@ final class Fx {
                 }
                 for (int i = 0; i < 6; i++) dot(w, c.clone().add(v[i]), Particle.END_ROD, 1, 0.0, 0, null);
             });
+            case SHAPESHIFT -> run(plugin, p, 18, t -> {
+                Location center = p.getLocation().add(0, 1, 0);
+                double radius = (0.5 + t * 0.08) * sc;
+                for (int i = 0; i < 3; i++) {
+                    double angle = t * 0.48 + i * Math.PI * 2.0 / 3.0;
+                    Location at = center.clone().add(Math.cos(angle) * radius, Math.sin(angle * 1.4) * 0.45, Math.sin(angle) * radius);
+                    tex(w, at, el, 3, 0.04);
+                }
+                if (t == 0) circle(o.clone().add(0, 0.1, 0), 2.4 * sc, 28, 0,
+                        l -> dot(w, l, Particle.TOTEM_OF_UNDYING, 2, 0.04, 0.02, null));
+            });
         }
     }
 
@@ -362,6 +377,7 @@ final class Fx {
             case WIND, ICE -> 0.9;
             case LIGHTNING, CRYSTAL -> 1.3;
             case SHADOW, NATURE -> -0.4;
+            case SHAPESHIFT -> 0.2;
         };
         run(plugin, p, 6, t -> {
             double a0 = -1.2 + t * 0.4;

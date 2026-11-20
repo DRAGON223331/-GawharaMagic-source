@@ -483,6 +483,7 @@ public final class AdvancedSystems implements Listener {
             case LIGHT -> player.addPotionEffect(new PotionEffect(PotionEffectType.NIGHT_VISION, duration, 0));
             case SOUND -> player.addPotionEffect(new PotionEffect(PotionEffectType.HASTE, duration, amplifier));
             case CRYSTAL -> player.addPotionEffect(new PotionEffect(PotionEffectType.ABSORPTION, duration, amplifier));
+            case SHAPESHIFT -> player.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, duration, amplifier));
         }
     }
 
@@ -971,6 +972,7 @@ public final class AdvancedSystems implements Listener {
             case LIGHT -> "شعاع الفجر";
             case SOUND -> "سيد الصدى";
             case CRYSTAL -> "التاج البلوري";
+            case SHAPESHIFT -> "سيد الأشكال";
         };
     }
 

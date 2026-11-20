@@ -1,6 +1,16 @@
-# GawharaMagic 2.2.0 — 120 قدرة بميكانيكا مستقلة
+# GawharaMagic 2.3.0 — 130 قدرة + عنصر التحول
 
-الإصدار ده بيستبدل نظام قوالب الحركات العامة بقدرات مكتوبة لكل عنصر على حدة. كل عنصر عنده 10 قدرات: أول 3 قدرات أساسية موجودة في `PowerMode.java`، و7 قدرات إضافية بتنفيذ مستقل داخل `Moves.java`، بإجمالي **120 قدرة**.
+الإصدار ده بيستبدل نظام قوالب الحركات العامة بقدرات مكتوبة لكل عنصر على حدة. العناصر الاثنا عشر الأصلية تحتفظ بقدراتها العشر (120 قدرة). أُضيف عنصر ثالث عشر باسم **التحول** وله 10 قدرات مرتبطة بعشرة كائنات مختلفة، ليصبح الإجمالي **130 قدرة**.
+
+## عنصر التحول
+
+- اختَر «التحول» من شاشة اختيار القوى.
+- كل مستوى من مستوى العنصر يفتح خانة شكل إضافية؛ المستوى 1 يفتح خانة واحدة، والمستوى 10 يفتح الخانات العشر كاملة.
+- اقتُل أحد الكائنات المحددة لتتعلم شكله: سبايدر، كريبر، سكيلتون، بليز، جاست، واردن، آيرون جولم، إيفوكر، تنين الإند، إندرمان.
+- كل شكل يملك قدرة قتالية مختلفة وميزة سلبية/قتالية أثناء التحول. استخدم F لتفعيل وضع القوة، وScroll للتبديل بين الأشكال المكتسبة، وكليك يمين لتفعيل قدرة الشكل المختار. مدة التحول الافتراضية 18–30 ثانية حسب درجة القوة.
+- `/gmagic forms` يعرض الأشكال المفتوحة والمقفولة. `/gmagic unmorph` يرجعك لشكلك الطبيعي.
+- تغيير موديل اللاعب إلى شكل الكائن يحتاج إضافة **LibsDisguises** الاختيارية. قدرات الأشكال، جمعها، والآثار القتالية تعمل من دونها، لكن مظهر اللاعب يظل كما هو.
+
 
 - لا يوجد `Kind` أو dispatcher لأنواع عامة مثل BOLT / NOVA / DASH / STORM.
 - كل قدرة إضافية لها دالة تنفيذ مستقلة؛ الأدوات المشتركة مقتصرة على عمليات منخفضة المستوى مثل الضرر، وفحص الأهداف، والمؤثرات، وتأمين موضع الانتقال.
@@ -23,6 +33,7 @@
 | النور | وميضة، شعاع النور، نعمة النور | انكسار الطيف: أشعة متعددة المسارات؛ وسم الشمس: علامة تنفجر عند الانكشاف؛ ملاذ الفجر: تطهير الحلفاء؛ خطوة الطيف: انتقال لموضع مضيء آمن؛ التركيز الشمسي: تعزيز حسب الإضاءة؛ هالة الكشف: كشف وإضعاف؛ حكم السماء: أعمدة نور تتعقب الأهداف |
 | الصوت | موجة الصدمة، الانفجار الصوتي، الصدى | رنين الحركة: انفجار عند حركة الهدف؛ حقل الصمت: منطقة خمود؛ رادار الصدى: كشف خلف الجدران؛ خطوة الصدى: عودة لموضع سابق؛ الرفع التوافقي: رفع بنبضات؛ التردد المعاكس: عكس الاندفاع؛ النغمة الأخيرة: ثلاث موجات متصاعدة |
 | الكريستال | وابل الشظايا، درع المنشور، قفص الكريستال | منجم الجيود: ألغام شظايا؛ قلب الأوجه: درع يتشقق؛ انكسار المنشور: أشعة منعكسة؛ نمو البلور: أعمدة حبس؛ كسر الرنين: شقوق تنفجر؛ خطوة التشظي: انتقال مع شظايا خلفية؛ إزهار الماس: تفتح طبقي وشظايا |
+| التحول | 10 قدرات مستقلة للأشكال | سبايدر: شبكة وتسلّق الجدران؛ كريبر: انفجار دفع بلا تكسير؛ سكيلتون: وابل سهام؛ بليز: قذيفة ومقاومة نار؛ جاست: كرة نارية ثقيلة؛ واردن: موجة صوتية؛ آيرون جولم: صدمة ودرع؛ إيفوكر: أنياب سحرية؛ تنين الإند: كرة تنفس التنين؛ إندرمان: انتقال خلف الهدف |
 
 ## المتطلبات وطريقة البناء
 
@@ -48,7 +59,7 @@
 
 # GawharaMagic 2.0.3
 
-GawharaMagic adds 12 elemental schools, 100 levels, secret trials every 5 levels, five distinct weapon tiers per element, empty-hand moves, and optional RPG progression systems.
+GawharaMagic adds 13 elemental schools, 100 levels, secret trials every 5 levels, five distinct weapon tiers per element, empty-hand moves, and optional RPG progression systems.
 
 ## Requirements
 
@@ -87,7 +98,7 @@ The bounty board uses non-combat server contracts (mining, casting skills, and t
 ## Existing commands
 
 - `/gmagic` - status and help
-- `/gmagic powers` - list the 12 elements
+- `/gmagic powers` - list the 13 elements
 - `/gmagic task` - secret trial status
 - `/gmagic reset <player>` - admin reset
 - `/gmagic level <player> <1-100>` - admin level adjustment
@@ -152,10 +163,10 @@ The unarmed move costs 8 AuraSkills mana by default (configurable under `mana.ba
 
 ## 2.0.2 — Distinct Elemental Weapon Skills
 
-- Every one of the 12 elements now receives all five weapon tiers; the unarmed move remains available as an additional option.
+- Every one of the 13 elements now receives all five weapon tiers; the unarmed move remains available as an additional option.
 - Weapon tiers have different active styles: targeted slash, heavy area impact, ranged elemental arrow, wide cyclone, and tier-5 elemental burst.
 - Lightning weapons have five separate techniques: Spark Bolt, Thunder Chain, Lightning Arrow, Lightning Storm, and Thunder Judgment.
-- Elemental weapon hits now have distinct passive effects for all 12 elements, including chained lightning, freeze, poison, shadow wither, sound knockback, and crystal slow.
+- Elemental weapon hits now have distinct passive effects for all 13 elements, including chained lightning, freeze, poison, shadow wither, sound knockback, and crystal slow.
 - Weapon abilities spend AuraSkills mana (default 18, tier-scaled) and use longer cooldowns for higher tiers.
 - Weapon lore now describes its tier-specific technique. Normal chest/door/button interactions remain usable.
 

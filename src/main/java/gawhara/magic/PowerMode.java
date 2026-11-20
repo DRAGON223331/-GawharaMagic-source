@@ -128,10 +128,21 @@ final class PowerMode implements Listener {
                 new Ab("وابل الشظايا", "خمس شظايا بلور", 4, 3),
                 new Ab("درع المنشور", "درع بلور يمتص الضرر", 5, 14),
                 new Ab("قفص الكريستال", "يحبس الهدف داخل قفص بلور", 6, 10)});
+        ABS.put(Element.SHAPESHIFT, new Ab[]{
+                new Ab("شبكة الصياد", "قدرة سبايدر: شبكة تثبّت الأعداء وتمنعهم من القفز", 5, 12),
+                new Ab("الانفجار المشحون", "قدرة كريبر: انفجار دائري بلا تكسير للبلوكات", 9, 24),
+                new Ab("وابل العظام", "قدرة سكيلتون: ثلاث سهام دقيقة في مروحة", 5, 7),
+                new Ab("القذيفة اللهبية", "قدرة بليز: كرة نارية ومقاومة للنار", 6, 9),
+                new Ab("قذيفة الجاست", "قدرة جاست: قذيفة ثقيلة بلا تخريب للبيئة", 10, 26),
+                new Ab("الزئير الصوتي", "قدرة واردن: موجة صوتية تخترق المسار", 12, 32),
+                new Ab("ضربة الحارس", "قدرة آيرون جولم: صدمة أرضية ودرع حديدي", 8, 20),
+                new Ab("أنياب الاستدعاء", "قدرة إيفوكر: صف من الأنياب السحرية", 9, 22),
+                new Ab("زفير التنين", "قدرة تنين الإند: كرة تنين وسحابة تنفس", 14, 38),
+                new Ab("خطوة الفراغ", "قدرة إندرمان: انتقال خلف الهدف وضربة ظل", 8, 18)});
         // القدرات 4..10 لكل عنصر معرّفة في Moves.java
         for (Element e : Element.values()) {
             Ab[] base = ABS.get(e);
-            Moves.Mv[] ex = Moves.MV.get(e);
+            Moves.Mv[] ex = Moves.MV.getOrDefault(e, new Moves.Mv[0]);
             Ab[] all = new Ab[base.length + ex.length];
             System.arraycopy(base, 0, all, 0, base.length);
             for (int i = 0; i < ex.length; i++)
@@ -309,6 +320,8 @@ final class PowerMode implements Listener {
         List<Integer> l = magic.getConfig().getIntegerList("power.cooldowns." + el.name());
         return l.size() > idx ? l.get(idx) : ABS.get(el)[idx].cd();
     }
+
+    void useSelected(Player p) { cast(p); }
 
     void cycle(Player p, int dir) {
         Ab[] a = abs(p);
@@ -512,8 +525,13 @@ final class PowerMode implements Listener {
         p.sendMessage(Magic.c("§6✦ قدرات " + el.color + el.ar));
         Ab[] a = ABS.get(el);
         for (int i = 0; i < a.length; i++) {
-            p.sendMessage(Magic.c(el.color + (i + 1) + ". " + a[i].name() + " §8| §b" + trim(cost(el, i))
+            String lock = el == Element.SHAPESHIFT && (magic.shapeshift == null || !magic.shapeshift.hasForm(p, i))
+                    ? "§c[مقفولة] " : "§a[مفتوحة] ";
+            p.sendMessage(Magic.c((el == Element.SHAPESHIFT ? lock : "") + el.color + (i + 1) + ". " + a[i].name() + " §8| §b" + trim(cost(el, i))
                     + " مانا §8| §7" + cooldown(el, i) + "ث §8— §7" + a[i].desc()));
+        }
+        if (el == Element.SHAPESHIFT && magic.shapeshift != null) {
+            p.sendMessage(Magic.c("§7سجل الأشكال: §e/gmagic forms"));
         }
     }
 
@@ -553,6 +571,7 @@ final class PowerMode implements Listener {
     }
 
     private boolean run(Player p, Element el, int idx, int t) {
+        if (el == Element.SHAPESHIFT) return magic.shapeshift != null && magic.shapeshift.castForm(p, idx, t);
         if (idx >= 3) return moves.run(p, el, idx - 3, t);
         return switch (el) {
             case FIRE -> switch (idx) { case 0 -> fireAura(p, t); case 1 -> fireball(p, t); default -> fireFlight(p, t); };
@@ -567,6 +586,7 @@ final class PowerMode implements Listener {
             case LIGHT -> switch (idx) { case 0 -> flash(p, t); case 1 -> lightBeam(p, t); default -> blessing(p, t); };
             case SOUND -> switch (idx) { case 0 -> shockwave(p, t); case 1 -> sonicBoom(p, t); default -> echo(p, t); };
             case CRYSTAL -> switch (idx) { case 0 -> shardVolley(p, t); case 1 -> prismShield(p, t); default -> crystalCage(p, t); };
+            case SHAPESHIFT -> false;
         };
     }
 
@@ -1428,6 +1448,7 @@ final class PowerMode implements Listener {
             case LIGHT -> { effect(t, PotionEffectType.GLOWING, 100, 0); effect(t, PotionEffectType.BLINDNESS, 30, 0); }
             case SOUND -> { effect(t, PotionEffectType.NAUSEA, 60, 0); magic.push(t, p.getLocation(), 0.6, 0.2); }
             case CRYSTAL -> effect(t, PotionEffectType.SLOWNESS, 60, 1);
+            case SHAPESHIFT -> { if (magic.shapeshift != null) magic.shapeshift.onMelee(p, t, tier); }
         }
     }
 }
