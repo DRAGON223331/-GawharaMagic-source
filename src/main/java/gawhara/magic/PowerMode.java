@@ -128,9 +128,20 @@ final class PowerMode implements Listener {
                 new Ab("وابل الشظايا", "خمس شظايا بلور", 4, 3),
                 new Ab("درع المنشور", "درع بلور يمتص الضرر", 5, 14),
                 new Ab("قفص الكريستال", "يحبس الهدف داخل قفص بلور", 6, 10)});
+        // القدرات 4..10 لكل عنصر معرّفة في Moves.java
+        for (Element e : Element.values()) {
+            Ab[] base = ABS.get(e);
+            Moves.Mv[] ex = Moves.MV.get(e);
+            Ab[] all = new Ab[base.length + ex.length];
+            System.arraycopy(base, 0, all, 0, base.length);
+            for (int i = 0; i < ex.length; i++)
+                all[base.length + i] = new Ab(ex[i].name(), ex[i].desc(), ex[i].cost(), ex[i].cd());
+            ABS.put(e, all);
+        }
     }
 
     private final Magic magic;
+    private final Moves moves;
     private final NamespacedKey coreKey;
     private final File file;
     private final YamlConfiguration store;
@@ -144,6 +155,7 @@ final class PowerMode implements Listener {
 
     PowerMode(Magic magic) {
         this.magic = magic;
+        this.moves = new Moves(this, magic);
         this.coreKey = new NamespacedKey(magic, "power_core");
         this.file = new File(magic.getDataFolder(), "powermode.yml");
         this.store = YamlConfiguration.loadConfiguration(file);
@@ -289,13 +301,13 @@ final class PowerMode implements Listener {
 
     private double cost(Element el, int idx) {
         List<Double> l = magic.getConfig().getDoubleList("power.costs." + el.name());
-        double base = l.size() == 3 ? l.get(idx) : ABS.get(el)[idx].cost();
+        double base = l.size() > idx ? l.get(idx) : ABS.get(el)[idx].cost();
         return Math.max(0, base * magic.getConfig().getDouble("power.cost-multiplier", 1.0));
     }
 
     private int cooldown(Element el, int idx) {
         List<Integer> l = magic.getConfig().getIntegerList("power.cooldowns." + el.name());
-        return l.size() == 3 ? l.get(idx) : ABS.get(el)[idx].cd();
+        return l.size() > idx ? l.get(idx) : ABS.get(el)[idx].cd();
     }
 
     void cycle(Player p, int dir) {
@@ -318,7 +330,7 @@ final class PowerMode implements Listener {
         String state = left > 0 ? "§c" + (left / 1000 + 1) + "ث" : "§aجاهزة";
         p.showTitle(Title.title(
                 Magic.c(el.color + "✦ " + ab.name() + " ✦"),
-                Magic.c("§7[" + (i + 1) + "/3] §8| §b" + trim(cost(el, i)) + " مانا §8| " + state),
+                Magic.c("§7[" + (i + 1) + "/" + ABS.get(el).length + "] §8| §b" + trim(cost(el, i)) + " مانا §8| " + state),
                 Title.Times.times(Duration.ZERO, Duration.ofMillis(500), Duration.ZERO)));
     }
 
@@ -541,6 +553,7 @@ final class PowerMode implements Listener {
     }
 
     private boolean run(Player p, Element el, int idx, int t) {
+        if (idx >= 3) return moves.run(p, el, idx - 3, t);
         return switch (el) {
             case FIRE -> switch (idx) { case 0 -> fireAura(p, t); case 1 -> fireball(p, t); default -> fireFlight(p, t); };
             case WATER -> switch (idx) { case 0 -> tide(p, t); case 1 -> bubble(p, t); default -> swim(p, t); };
@@ -558,33 +571,33 @@ final class PowerMode implements Listener {
     }
 
     // ------------------------------------------------------------ helpers
-    private Vector dir(Player p) {
+    Vector dir(Player p) {
         Vector d = p.getLocation().getDirection();
         if (d.lengthSquared() < 0.0001) return new Vector(0, 0, 1);
         return d.normalize();
     }
 
-    private boolean ok(Player p, LivingEntity le) {
+    boolean ok(Player p, LivingEntity le) {
         if (le == p || le.isDead() || le instanceof ArmorStand || le instanceof Allay) return false;
         if (le instanceof Player o && o.getGameMode() == GameMode.SPECTATOR) return false;
         if (le instanceof Tameable tm && tm.isTamed() && p.equals(tm.getOwner())) return false;
         return true;
     }
 
-    private List<LivingEntity> foes(Player p, double r) {
+    List<LivingEntity> foes(Player p, double r) {
         List<LivingEntity> out = new ArrayList<>();
         for (LivingEntity le : magic.near(p, r)) if (ok(p, le)) out.add(le);
         return out;
     }
 
-    private List<LivingEntity> foesAt(Player p, Location c, double r) {
+    List<LivingEntity> foesAt(Player p, Location c, double r) {
         List<LivingEntity> out = new ArrayList<>();
         for (Entity en : c.getWorld().getNearbyEntities(c, r, r, r))
             if (en instanceof LivingEntity le && ok(p, le)) out.add(le);
         return out;
     }
 
-    private List<LivingEntity> cone(Player p, double range, double minDot) {
+    List<LivingEntity> cone(Player p, double range, double minDot) {
         List<LivingEntity> out = new ArrayList<>();
         Vector d = dir(p);
         Vector eye = p.getEyeLocation().toVector();
@@ -597,7 +610,7 @@ final class PowerMode implements Listener {
         return out;
     }
 
-    private LivingEntity firstTarget(Player p, double range) {
+    LivingEntity firstTarget(Player p, double range) {
         RayTraceResult r = p.getWorld().rayTraceEntities(p.getEyeLocation(), dir(p), range, 0.8,
                 en -> en instanceof LivingEntity le && ok(p, le));
         if (r != null && r.getHitEntity() instanceof LivingEntity le) return le;
@@ -606,13 +619,13 @@ final class PowerMode implements Listener {
         return c.isEmpty() ? null : c.get(0);
     }
 
-    private Location aimPoint(Player p, double range) {
+    Location aimPoint(Player p, double range) {
         RayTraceResult r = p.getWorld().rayTraceBlocks(p.getEyeLocation(), dir(p), range, FluidCollisionMode.NEVER, true);
         if (r != null && r.getHitPosition() != null) return r.getHitPosition().toLocation(p.getWorld());
         return p.getEyeLocation().add(dir(p).multiply(range));
     }
 
-    private void hurt(Player p, LivingEntity t, double dmg) {
+    void hurt(Player p, LivingEntity t, double dmg) {
         if (t == p || t.isDead() || dmg <= 0) return;
         UUID u = p.getUniqueId();
         boolean was = !busy.add(u);
@@ -620,26 +633,26 @@ final class PowerMode implements Listener {
         finally { if (!was) busy.remove(u); }
     }
 
-    private void ring(Location c, double r, int pts, Consumer<Location> f) {
+    void ring(Location c, double r, int pts, Consumer<Location> f) {
         for (int i = 0; i < pts; i++) {
             double a = 2 * Math.PI * i / pts;
             f.accept(c.clone().add(Math.cos(a) * r, 0, Math.sin(a) * r));
         }
     }
 
-    private void fx(Location l, Particle pt, int n, double spread, double speed) {
+    void fx(Location l, Particle pt, int n, double spread, double speed) {
         l.getWorld().spawnParticle(pt, l, n, spread, spread, spread, speed);
     }
 
-    private void snd(Location l, Sound s, float pitch) {
+    void snd(Location l, Sound s, float pitch) {
         l.getWorld().playSound(l, s, 1.0f, pitch);
     }
 
-    private void effect(LivingEntity e, PotionEffectType type, int ticks, int amp) {
+    void effect(LivingEntity e, PotionEffectType type, int ticks, int amp) {
         e.addPotionEffect(new PotionEffect(type, ticks, amp, true, true));
     }
 
-    private double scale(int t) { return 1.0 + (t - 1) * 0.2; }
+    double scale(int t) { return 1.0 + (t - 1) * 0.2; }
 
     /** إضاءة فعلية: بنقلل تأثير ضوء السما بالليل عشان الليل يتحسب ظلام. */
     private int lightAt(Block b) {
@@ -658,7 +671,7 @@ final class PowerMode implements Listener {
         return 1.0;
     }
 
-    private void projectile(Player p, double speed, int maxTicks, double radius,
+    void projectile(Player p, double speed, int maxTicks, double radius,
                             Consumer<Location> trail, BiConsumer<Location, LivingEntity> end, Vector dirOverride) {
         Vector d = dirOverride != null ? dirOverride.clone().normalize() : dir(p);
         Location pos = p.getEyeLocation().add(d.clone().multiply(0.8));
@@ -1395,7 +1408,7 @@ final class PowerMode implements Listener {
     }
 
     // ============================================================ left-click strike effects
-    private void strikeEffect(Player p, Element el, LivingEntity t, int tier) {
+    void strikeEffect(Player p, Element el, LivingEntity t, int tier) {
         Location l = t.getLocation().add(0, 1, 0);
         World w = l.getWorld();
         w.spawnParticle(el.particle, l, 14, 0.3, 0.4, 0.3, 0.05);

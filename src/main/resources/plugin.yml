@@ -1,10 +1,10 @@
 name: GawharaMagic
 main: gawhara.magic.Magic
-version: 2.1.1
+version: 2.2.0
 api-version: '1.21'
 depend: [AuraSkills]
 author: Gawhara
-description: Twelve elemental schools with distinct five-tier weapons, AuraSkills mana skills, unarmed moves, relics, spirit companions, contracts, and transformations.
+description: Twelve elemental schools with ten individually implemented abilities each, AuraSkills mana, relics, spirit companions, contracts, and transformations.
 commands:
   gmagic:
     description: Open the magic GUI, status, and secret trials
