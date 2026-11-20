@@ -1,5 +1,6 @@
 package gawhara.magic;
 
+import net.kyori.adventure.title.Title;
 import org.bukkit.Color;
 import org.bukkit.FluidCollisionMode;
 import org.bukkit.GameMode;
@@ -45,6 +46,7 @@ import org.bukkit.util.RayTraceResult;
 import org.bukkit.util.Vector;
 
 import java.io.File;
+import java.time.Duration;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -305,13 +307,19 @@ final class PowerMode implements Listener {
         showSelected(p);
     }
 
+    /** يظهر اسم القدرة المختارة في نص الشاشة نص ثانية ثم يختفي (الـ Action Bar متسيب لـ AuraSkills). */
     private void showSelected(Player p) {
         Element el = magic.getEl(p);
         if (el == null) return;
-        int i = selected.getOrDefault(p.getUniqueId(), 0);
+        UUID id = p.getUniqueId();
+        int i = selected.getOrDefault(id, 0);
         Ab ab = ABS.get(el)[i];
-        p.sendActionBar(Magic.c(el.color + "✦ " + ab.name() + " §7[" + (i + 1) + "/3] §8— §7" + ab.desc()
-                + " §8| §b" + trim(cost(el, i)) + " مانا"));
+        long left = cds.getOrDefault(id + ":" + el + i, 0L) - System.currentTimeMillis();
+        String state = left > 0 ? "§c" + (left / 1000 + 1) + "ث" : "§aجاهزة";
+        p.showTitle(Title.title(
+                Magic.c(el.color + "✦ " + ab.name() + " ✦"),
+                Magic.c("§7[" + (i + 1) + "/3] §8| §b" + trim(cost(el, i)) + " مانا §8| " + state),
+                Title.Times.times(Duration.ZERO, Duration.ofMillis(500), Duration.ZERO)));
     }
 
     private static String trim(double d) {
@@ -331,14 +339,6 @@ final class PowerMode implements Listener {
             if (el == Element.SHADOW && lightAt(p.getLocation().getBlock()) <= 4) {
                 p.addPotionEffect(new PotionEffect(PotionEffectType.STRENGTH, 30, 0, true, false));
                 p.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, 30, 0, true, false));
-            }
-            if (tick % 4 == 0) {
-                int i = selected.getOrDefault(id, 0);
-                Ab ab = ABS.get(el)[i];
-                long left = cds.getOrDefault(id + ":" + el + i, 0L) - System.currentTimeMillis();
-                String cdTxt = left > 0 ? " §c" + (left / 1000 + 1) + "ث" : " §aجاهزة";
-                p.sendActionBar(Magic.c(el.color + "✦ " + ab.name() + " §7[" + (i + 1) + "/3]" + cdTxt
-                        + " §8| §bمانا §f" + (int) magic.advanced.mana(p) + "§7/§f" + (int) magic.advanced.maxMana(p)));
             }
         }
     }
