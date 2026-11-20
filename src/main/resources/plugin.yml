@@ -1,15 +1,15 @@
 name: GawharaMagic
 main: gawhara.magic.Magic
-version: 2.3.6
+version: 2.3.7
 api-version: '1.21'
 depend: [AuraSkills]
 softdepend: [LibsDisguises]
 author: Gawhara
-description: Thirteen elemental schools with OP full access, admin player editing, level progression, touch-friendly commands, and AuraSkills mana.
+description: Thirteen elemental schools with OP full access, admin player editing, level progression, touch control menu for Bedrock/mobile, and AuraSkills mana.
 commands:
   gmagic:
     description: Open the magic GUI, status, and secret trials
-    usage: /gwm [pw|next|prev|use|ab|forms|unmorph|m|s|g|u|a|f|mn|fu|tr|b|rep|task|powers|admin]
+    usage: /gwm [menu|pw|next|prev|use|ab|forms|unmorph|m|s|g|u|a|f|mn|fu|tr|b|rep|task|powers|admin]
     aliases: [magic, gwm]
   grestore:
     description: Get back everything you lost when you died

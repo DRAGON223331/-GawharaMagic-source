@@ -1,4 +1,11 @@
-# GawharaMagic 2.3.6 — OP Full Access + Admin Player Editor + Cross-platform Controls
+# GawharaMagic 2.3.7 — Touch Menu for Bedrock/Mobile + OP Admin Controls
+
+## 2.3.7 — Touch controls for mobile and Bedrock PC
+- Added `/gwm menu` (`/gwm touch`, `/gwm mobile`, `/gwm controls`) to open a touch-friendly in-game control panel.
+- Added tap/click buttons for Power Mode, previous/next technique, casting, technique selection, Shapeshift forms, and OP element switching.
+- Added a paginated 50-technique browser that shows lock levels and Shapeshift kill requirements.
+- The GUI uses a normal server inventory, which Geyser translates for Bedrock. It is an on-demand menu, not a permanent floating HUD overlay.
+
 
 ## OP access
 - OP has virtual level 100 for GawharaMagic checks; this does not write artificial XP/points to the player's saved progression.
@@ -28,11 +35,24 @@ Requires `gawhara.magic.admin` (default: OP). Targets must be online for these l
 
 Element values accept English enum names or Arabic labels such as `النار`, `الرياح`, `الماء`, `التحول`.
 
-## Mobile / Bedrock controls
-These chat commands work on Bedrock clients through Geyser and on Java, so touch players do not need the Java F key or mouse wheel:
+## Mobile / Bedrock controls — Touch GUI (2.3.7)
+The plugin now includes an in-game touch-friendly control panel. With Geyser, Bedrock inventory screens are translated to Bedrock UI, so mobile players can tap the menu buttons and Bedrock PC players can click them with a mouse.
+
+Open the panel with `/gwm` or `/gwm menu` (also `/gwm touch`, `/gwm mobile`, or `/gwm controls`). It provides:
+- Power Mode on/off button.
+- Previous/next technique buttons.
+- A clear Cast button for the selected technique.
+- A paginated list of all 50 techniques; tap an unlocked technique to select it and see locked requirements.
+- Quick buttons for Spin, Guard, Ultimate, Awakening, Forbidden Power, and rare transformation (the normal unlock requirements still apply).
+- Shapeshift form list when using the Shapeshift element.
+- OP element switching without erasing saved progress.
+- Typing `/gwm` with no arguments also opens the touch panel; `/gmagic` remains the status/help command.
+
+The menu is an on-demand inventory screen, not permanent floating HUD buttons. This is intentional: a normal Paper plugin cannot inject custom touch buttons into the Bedrock HUD without a client-side resource pack/add-on. Chat commands remain available as a fallback:
 
 | Command | Action |
 |---|---|
+| `/gwm` or `/gwm menu` | Open the touch control panel (recommended for mobile/Bedrock PC) |
 | `/gwm pw` | Toggle Power Mode |
 | `/gwm next` | Select next unlocked technique |
 | `/gwm prev` | Select previous unlocked technique |
@@ -41,7 +61,7 @@ These chat commands work on Bedrock clients through Geyser and on Java, so touch
 | `/gmagic forms` | View Shapeshift forms |
 | `/gmagic unmorph` | Return to normal appearance |
 
-Native PC controls remain: F/offhand-swap to toggle Power Mode, hotbar scroll to switch moves, right-click to cast, and Shift to stop flight. This release exposes command controls for touch devices; it does not add on-screen touch buttons.
+Native Java PC controls remain: F/offhand-swap to toggle Power Mode, hotbar scroll to switch moves, right-click to cast, and Shift to stop flight. Bedrock PC can use the touch panel with mouse clicks or the command fallback.
 
 ---
 

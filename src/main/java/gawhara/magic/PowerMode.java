@@ -363,6 +363,45 @@ final class PowerMode implements Listener {
 
     void useSelected(Player p) { cast(p); }
 
+    int selectedIndex(Player p) {
+        Element element = magic.getEl(p);
+        if (element == null) return 0;
+        int maxIndex = ABS.get(element).length - 1;
+        return Math.max(0, Math.min(maxIndex, selected.getOrDefault(p.getUniqueId(), 0)));
+    }
+
+    Ab selectedAbility(Player p) {
+        Element element = magic.getEl(p);
+        if (element == null) return null;
+        Ab[] abilities = ABS.get(element);
+        int index = selectedIndex(p);
+        return index >= 0 && index < abilities.length ? abilities[index] : null;
+    }
+
+    int requiredAbilityLevel(Element element, int index) {
+        return Math.min(moveUnlockMaxLevel(), index + 1);
+    }
+
+    boolean selectAbility(Player player, int index) {
+        Element element = magic.getEl(player);
+        if (element == null || index < 0 || index >= ABS.get(element).length) return false;
+        if (!abilityUnlocked(player, element, index)) {
+            int required = requiredAbilityLevel(element, index);
+            if (element == Element.SHAPESHIFT && magic.shapeshift != null
+                    && magic.levelOf(player) >= required
+                    && !magic.shapeshift.hasForm(player, ABS.get(element)[index].baseIndex())) {
+                player.sendMessage(Magic.c("§cلازم تتعلم الشكل المرتبط بالحركة بقتل الكائن الأول."));
+            } else {
+                player.sendMessage(Magic.c("§cالحركة دي لسه مقفولة. هتفتح عند لفل §e" + required + "§c."));
+            }
+            return false;
+        }
+        selected.put(player.getUniqueId(), index);
+        player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_CHIME, 0.7f, 0.8f + index * 0.03f);
+        showSelected(player);
+        return true;
+    }
+
     void resetSelection(Player p) {
         selected.put(p.getUniqueId(), 0);
         if (isActive(p)) showSelected(p);
@@ -372,11 +411,9 @@ final class PowerMode implements Listener {
         return Math.max(1, Math.min(50, magic.getConfig().getInt("progression.move-unlocks-max-level", 50)));
     }
 
-    private int requiredAbilityLevel(Element element, int index) {
-        return Math.min(moveUnlockMaxLevel(), index + 1); // تقنية جديدة كل مستوى حتى الحد المحدد.
-    }
+    // تقنية جديدة كل مستوى حتى الحد المحدد.
 
-    private boolean abilityUnlocked(Player player, Element element, int index) {
+    boolean abilityUnlocked(Player player, Element element, int index) {
         if (index < 0 || index >= ABS.get(element).length) return false;
         // OP can test every move immediately, without level progression.
         if (player.isOp()) return true;

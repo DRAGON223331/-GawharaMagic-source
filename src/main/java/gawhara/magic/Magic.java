@@ -74,6 +74,19 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
         @Override public Inventory getInventory() { return inv; }
     }
 
+    /** Chest-style touch UI. Geyser translates this inventory into a Bedrock container screen. */
+    static class TouchGui implements InventoryHolder {
+        enum Page { MAIN, ABILITIES }
+        Inventory inv;
+        final Page page;
+        final int pageNumber;
+        TouchGui(Page page, int pageNumber) {
+            this.page = page;
+            this.pageNumber = pageNumber;
+        }
+        @Override public Inventory getInventory() { return inv; }
+    }
+
     NamespacedKey KEY;
     NamespacedKey OWNER_KEY;
     NamespacedKey GENERATION_KEY;
@@ -509,6 +522,193 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
         p.playSound(p.getLocation(), Sound.BLOCK_ENCHANTMENT_TABLE_USE, 1f, 1f);
     }
 
+    private ItemStack touchButton(Material material, String name, String... loreLines) {
+        ItemStack item = new ItemStack(material);
+        ItemMeta meta = item.getItemMeta();
+        meta.displayName(c(name));
+        List<Component> lore = new ArrayList<>();
+        for (String line : loreLines) lore.add(c(line));
+        if (!lore.isEmpty()) meta.lore(lore);
+        meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_ENCHANTS);
+        item.setItemMeta(meta);
+        return item;
+    }
+
+    private void fillTouchFrame(Inventory inventory) {
+        ItemStack pane = touchButton(Material.BLACK_STAINED_GLASS_PANE, "§0 ");
+        for (int slot = 0; slot < inventory.getSize(); slot++) {
+            if (slot < 9 || slot >= inventory.getSize() - 9) inventory.setItem(slot, pane);
+        }
+    }
+
+    void openTouchMenu(Player player) {
+        if (getEl(player) == null) {
+            player.sendMessage(c("§eاختار عنصرك الأول، وبعدها هتظهر لك لوحة التحكم باللمس."));
+            openGui(player);
+            return;
+        }
+        TouchGui holder = new TouchGui(TouchGui.Page.MAIN, 0);
+        holder.inv = Bukkit.createInventory(holder, 27, c("§8✦ لوحة التحكم السحرية ✦"));
+        fillTouchFrame(holder.inv);
+
+        Element element = getEl(player);
+        boolean active = power != null && power.isActive(player);
+        PowerMode.Ab selected = power == null ? null : power.selectedAbility(player);
+        holder.inv.setItem(10, touchButton(active ? Material.RED_DYE : Material.LIME_DYE,
+                active ? "§cإيقاف وضع القوة" : "§aتشغيل وضع القوة",
+                active ? "§7اضغط لإيقاف وضع القوة" : "§7اضغط لتشغيل وضع القوة"));
+        holder.inv.setItem(11, touchButton(Material.ARROW, "§eالحركة السابقة", "§7اختيار الحركة السابقة"));
+        holder.inv.setItem(13, touchButton(element.icon, "§bالحركة المختارة",
+                selected == null ? "§7لا توجد حركة محددة" : "§f" + selected.name(),
+                selected == null ? "§7" : "§7" + selected.desc(),
+                "§8استخدم الزرين على الجانبين للتبديل"));
+        holder.inv.setItem(15, touchButton(Material.SPECTRAL_ARROW, "§eالحركة التالية", "§7اختيار الحركة التالية"));
+        holder.inv.setItem(16, touchButton(Material.FIREWORK_STAR, "§6استخدام الحركة",
+                "§7اضغط لتنفيذ الحركة المختارة",
+                active ? "§aوضع القوة شغال" : "§cشغّل وضع القوة الأول"));
+        holder.inv.setItem(20, touchButton(Material.BOOK, "§dقائمة الحركات",
+                "§7اعرض الحركات المفتوحة والمقفولة", "§7واضغط على أي حركة مفتوحة لاختيارها"));
+        if (element == Element.SHAPESHIFT) {
+            holder.inv.setItem(22, touchButton(Material.ENDERMAN_SPAWN_EGG, "§5أشكال التحول",
+                    "§7عرض الكائنات التي تعلمت التحول إليها"));
+        } else {
+            holder.inv.setItem(22, touchButton(Material.COMPASS, "§bمعلومات العنصر",
+                    "§7" + element.ar, "§7" + ElementAffinity.requirement(element)));
+        }
+        holder.inv.setItem(17, touchButton(Material.END_CRYSTAL, "§5التحول النادر",
+                "§7تفعيل التحول الخاص بالعنصر", "§8يتطلب شروط المستوى والسمعة"));
+        holder.inv.setItem(18, touchButton(Material.BLAZE_POWDER, "§6الدوران العنصري",
+                "§7تفعيل Spin من غير كيبورد"));
+        holder.inv.setItem(19, touchButton(Material.SHIELD, "§bدرع الحماية",
+                "§7تفعيل Guard من غير Shift + F"));
+        if (player.isOp()) {
+            holder.inv.setItem(24, touchButton(Material.NETHER_STAR, "§dتغيير العنصر (OP)",
+                    "§7تقدر تختار أي عنصر بدون فقدان تقدمك"));
+        }
+        holder.inv.setItem(21, touchButton(Material.DRAGON_BREATH, "§cالقوة النهائية",
+                "§7Ultimate — تخضع لشروط الفتح"));
+        holder.inv.setItem(23, touchButton(Material.TOTEM_OF_UNDYING, "§eالاستيقاظ",
+                "§7Awakening — تخضع لشروط الفتح"));
+        holder.inv.setItem(25, touchButton(Material.WITHER_ROSE, "§5القوة المحرمة",
+                "§7Forbidden Power — تخضع لشروط الفتح"));
+        holder.inv.setItem(26, touchButton(Material.BARRIER, "§cإغلاق اللوحة"));
+        player.openInventory(holder.inv);
+        player.playSound(player.getLocation(), Sound.BLOCK_BARREL_OPEN, 0.7f, 1.25f);
+    }
+
+    private void openTouchAbilities(Player player, int pageNumber) {
+        Element element = getEl(player);
+        if (element == null || power == null) { openGui(player); return; }
+        int page = Math.max(0, Math.min(1, pageNumber));
+        TouchGui holder = new TouchGui(TouchGui.Page.ABILITIES, page);
+        holder.inv = Bukkit.createInventory(holder, 54, c("§8الحركات " + element.ar + " §7· صفحة " + (page + 1) + "/2"));
+        ItemStack pane = touchButton(Material.GRAY_STAINED_GLASS_PANE, "§0 ");
+        for (int slot = 45; slot < 54; slot++) holder.inv.setItem(slot, pane);
+
+        PowerMode.Ab[] abilities = PowerMode.ABS.get(element);
+        int start = page * 45;
+        int end = Math.min(abilities.length, start + 45);
+        int current = power.selectedIndex(player);
+        for (int index = start; index < end; index++) {
+            PowerMode.Ab ability = abilities[index];
+            boolean unlocked = power.abilityUnlocked(player, element, index);
+            Material icon = unlocked ? (index == current ? Material.ENCHANTED_BOOK : Material.BOOK)
+                    : Material.GRAY_DYE;
+            String state;
+            if (unlocked) state = index == current ? "§b[الحركة المختارة]" : "§a[مفتوحة — اضغط للاختيار]";
+            else if (element == Element.SHAPESHIFT && levelOf(player) >= power.requiredAbilityLevel(element, index)) state = "§6[اقتُل الكائن لفتح الشكل]";
+            else state = "§c[تُفتح عند لفل " + power.requiredAbilityLevel(element, index) + "]";
+            double manaCost = ability.cost();
+            holder.inv.setItem(index - start, touchButton(icon,
+                    (unlocked ? "§f" : "§8") + (index + 1) + ". " + ability.name(),
+                    state, "§7" + ability.desc(),
+                    player.isOp() ? "§dتكلفة المانا: مجانية (OP)" : "§bتكلفة أساسية: " + String.format(java.util.Locale.US, "%.1f", manaCost) + " مانا",
+                    ability.evolutionRank() > 0 ? "§dرتبة التطور: " + ability.evolutionRank() + "/4" : "§7حركة أساسية"));
+        }
+        holder.inv.setItem(45, touchButton(Material.ARROW, "§eالصفحة السابقة"));
+        holder.inv.setItem(48, touchButton(Material.OAK_DOOR, "§aالعودة للوحة التحكم"));
+        holder.inv.setItem(49, touchButton(Material.SPECTRAL_ARROW, "§eالصفحة التالية"));
+        holder.inv.setItem(53, touchButton(Material.BARRIER, "§cإغلاق"));
+        player.openInventory(holder.inv);
+    }
+
+    private void runTouchCommand(Player player, String subcommand) {
+        player.closeInventory();
+        player.performCommand("gmagic " + subcommand);
+    }
+
+    @EventHandler
+    public void onTouchGuiClick(InventoryClickEvent event) {
+        if (!(event.getInventory().getHolder() instanceof TouchGui gui)) return;
+        event.setCancelled(true);
+        if (!(event.getWhoClicked() instanceof Player player)) return;
+        if (event.getClickedInventory() == null || event.getClickedInventory() != event.getInventory()) return;
+        int slot = event.getRawSlot();
+        if (slot < 0 || slot >= event.getInventory().getSize()) return;
+
+        if (gui.page == TouchGui.Page.MAIN) {
+            switch (slot) {
+                case 10 -> {
+                    if (power != null) power.toggle(player);
+                    openTouchMenu(player);
+                }
+                case 11 -> {
+                    if (power != null) power.cycle(player, -1);
+                    openTouchMenu(player);
+                }
+                case 13 -> {
+                    // الوسط يعرض الحركة المختارة فقط؛ التنفيذ من زر الاستخدام الواضح في الخانة 16.
+                }
+                case 16 -> {
+                    if (power == null) return;
+                    if (!power.isActive(player)) {
+                        player.sendMessage(c("§cشغّل وضع القوة من زر التشغيل الأول."));
+                        return;
+                    }
+                    power.useSelected(player);
+                    openTouchMenu(player);
+                }
+                case 15 -> {
+                    if (power != null) power.cycle(player, 1);
+                    openTouchMenu(player);
+                }
+                case 17 -> runTouchCommand(player, "transform");
+                case 18 -> runTouchCommand(player, "spin");
+                case 19 -> runTouchCommand(player, "guard");
+                case 20 -> openTouchAbilities(player, 0);
+                case 21 -> runTouchCommand(player, "ultimate");
+                case 22 -> {
+                    if (getEl(player) == Element.SHAPESHIFT && shapeshift != null) shapeshift.showForms(player);
+                    else player.sendMessage(c("§7عنصرك الحالي: " + getEl(player).ar + " §8| §7" + ElementAffinity.requirement(getEl(player))));
+                    openTouchMenu(player);
+                }
+                case 23 -> runTouchCommand(player, "awaken");
+                case 24 -> {
+                    if (player.isOp()) openGui(player);
+                }
+                case 25 -> runTouchCommand(player, "forbidden");
+                case 26 -> player.closeInventory();
+                default -> { }
+            }
+            return;
+        }
+
+        if (slot == 48) { openTouchMenu(player); return; }
+        if (slot == 53) { player.closeInventory(); return; }
+        if (slot == 45 && gui.pageNumber > 0) { openTouchAbilities(player, gui.pageNumber - 1); return; }
+        if (slot == 49 && gui.pageNumber < 1) { openTouchAbilities(player, gui.pageNumber + 1); return; }
+        if (slot >= 0 && slot < 45) {
+            int index = gui.pageNumber * 45 + slot;
+            if (power != null && power.selectAbility(player, index)) openTouchMenu(player);
+            else openTouchAbilities(player, gui.pageNumber);
+        }
+    }
+
+    @EventHandler
+    public void onTouchGuiDrag(InventoryDragEvent event) {
+        if (event.getInventory().getHolder() instanceof TouchGui) event.setCancelled(true);
+    }
+
     @EventHandler
     public void onClick(InventoryClickEvent e) {
         if (!(e.getInventory().getHolder() instanceof MagicGui)) return;
@@ -544,7 +744,8 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
         p.sendMessage(c(p.isOp()
                 ? "§d✦ تم اختيار " + el.color + el.ar + " §7— كل قدرات العنصر مفتوحة لك كـ OP."
                 : "§6✦ §fاتعلمت قوة " + el.color + el.ar + "§f! اجمع النقاط من اللعب، واكتشف الاختبارات السرية."));
-        p.sendMessage(c("§eوضع القوة: اضغط §fF §eللتفعيل | سكرول للتبديل | كليك يمين للاستخدام | كليك شمال للضرب بقوتك."));
+        p.sendMessage(c("§eJava PC: F للتفعيل | سكرول للتبديل | كليك يمين للاستخدام."));
+        p.sendMessage(c("§aالموبايل وBedrock: افتح لوحة الأزرار بالأمر §f/gwm menu §aواستخدم اللمس."));
         p.sendMessage(c("§7حركتك الحالية: " + el.color + unarmedMoveName(el) + " §8| §7تتطور مع المستوى."));
         if (el != Element.SHAPESHIFT) {
             p.sendMessage(c("§6✦ بيئتك الطبيعية تقوّي العنصر: §f" + ElementAffinity.requirement(el)));
@@ -1786,13 +1987,14 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
             @Override public void run() {
                 if (!p.isOnline()) return;
                 if (getEl(p) == null) {
-                    p.sendMessage(c("§6✦ §fاختار قوتك السحرية! لو قفلت الشاشة اكتب §e/gmagic"));
+                    p.sendMessage(c("§6✦ §fاختار قوتك السحرية! للموبايل وBedrock استخدم §e/gwm menu §fبعد الاختيار."));
                     openGui(p);
                 } else {
                     UUID u = p.getUniqueId();
                     if (!loadStash(u).isEmpty() || data.getInt("stash." + u + ".exp", 0) > 0)
                         p.sendMessage(c("§6✦ §fعندك حاجة محفوظة من آخر موت — اكتب §e/grestore"));
                     if (trialReady(p)) showTrialHint(p);
+                    p.sendMessage(c("§aلو بتلعب من الموبايل أو Bedrock PC افتح لوحة التحكم بالأمر §f/gwm menu§a."));
                 }
             }
         }.runTaskLater(this, 60);
@@ -2025,6 +2227,14 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
             return true;
         }
         if (!(s instanceof Player p)) { s.sendMessage("للاعبين بس."); return true; }
+        if (a.length == 0 && label.equalsIgnoreCase("gwm")) {
+            openTouchMenu(p);
+            return true;
+        }
+        if (a.length >= 1 && List.of("menu", "touch", "mobile", "controls", "control").contains(a[0].toLowerCase(java.util.Locale.ROOT))) {
+            openTouchMenu(p);
+            return true;
+        }
         if (a.length >= 1 && a[0].equalsIgnoreCase("choose") && p.isOp()) {
             openGui(p);
             p.sendMessage(c("§dاختار أي عنصر للتجربة؛ تقدمك المحفوظ مش هيتصفر."));
@@ -2074,7 +2284,7 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
             p.sendMessage(c("§7الاختبار السري القادم عند لفل §e" + ((completedTrials(p) + 1) * 5)));
         p.sendMessage(c("§b⚡ وضع القوة: §fF §7تفعيل/إيقاف | §fسكرول §7تبديل | §fكليك يمين §7استخدام | §fكليك شمال §7ضربة بقوتك"));
         p.sendMessage(c("§7/gwm pw ← تفعيل/إيقاف | /gwm next|prev|use | /gwm ab ← قدراتك"));
-        p.sendMessage(c("§7/gmagic powers ← عرض القوى الثلاث عشرة"));
+        p.sendMessage(c("§7/gmagic powers ← عرض القوى الثلاث عشرة | §a/gwm menu ← لوحة أزرار باللمس للموبايل وBedrock PC"));
         if (el == Element.SHAPESHIFT) p.sendMessage(c("§d/gmagic forms ← سجل الأشكال التي تعلمتها"));
         p.sendMessage(c("§7/gmagic task ← تلميح الاختبار السري"));
         p.sendMessage(c("§b/gwm m §7← حركة العنصر بدون سلاح | أو Shift + كليك يمين في الهواء/بلوك عادي"));
