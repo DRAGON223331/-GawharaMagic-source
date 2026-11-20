@@ -1,6 +1,23 @@
-# GawharaMagic 2.3.7 — Touch Menu for Bedrock/Mobile + OP Admin Controls
+# GawharaMagic 2.3.10 — Elemental Spinjitzu Tornado + Main-hand Air Cast
 
-## 2.3.7 — Touch controls for mobile and Bedrock PC
+## 2.3.10 — Elemental Spinjitzu
+- Reworked Spin from a one-time burst into a sustained, 3-strand elemental tornado wrapped around the player, with fast counter-rotating ground and crown rings.
+- Each element uses its own particle signature and receives a themed pulse effect (fire burns, water/earth slow, wind lifts, ice/crystal freeze-slow, etc.).
+- The spin pulses damage and knock back nearby enemies once per second by default. Players with the same element and spectators are excluded.
+- Default duration is 5 seconds. Re-activate Spin to stop it early. No cooldown was added; the configured mana cost is paid once when starting.
+- Duration, radius, pulse damage, pulse interval, and knockback are editable in `config.yml` under `spin`.
+- The animation follows the player while they move. The camera is not forcibly rotated, avoiding disorientation on Bedrock/mobile.
+
+## 2.3.9 — Reliable right-click in empty air (Java + Bedrock/Geyser)
+- Power Mode now temporarily places its marked Power Core in the player's **main hand**, not the offhand. This gives the client a real held item while using right-click, making `RIGHT_CLICK_AIR` detectable even when the player is not aiming at any block.
+- The exact original main-hand item and hotbar slot are saved and restored when Power Mode is disabled, the player quits, or the player dies. The player's offhand item is left untouched.
+- F toggles Power Mode even when the player was holding an item; the held item is restored afterward. Scrolling still changes the selected technique rather than changing hotbar slots.
+- Right-click in open air casts immediately. Right-click on ordinary blocks casts. Chests, doors, buttons, and other interactable blocks keep their normal interaction; use Shift + right-click or `/gwm use` while targeting one of those blocks.
+- Shift + F Guard and Shift + left-click Spin continue to work while Power Mode is active.
+- Added compatibility cleanup for players who upgrade while still using the old 2.3.7/2.3.8 offhand-core mode.
+- No cooldown was added. The 5ms duplicate packet guard remains only to avoid one physical click being handled twice.
+
+## 2.3.8 — Bedrock right-click interaction fix and touch controls
 - Added `/gwm menu` (`/gwm touch`, `/gwm mobile`, `/gwm controls`) to open a touch-friendly in-game control panel.
 - Added tap/click buttons for Power Mode, previous/next technique, casting, technique selection, Shapeshift forms, and OP element switching.
 - Added a paginated 50-technique browser that shows lock levels and Shapeshift kill requirements.
@@ -35,7 +52,7 @@ Requires `gawhara.magic.admin` (default: OP). Targets must be online for these l
 
 Element values accept English enum names or Arabic labels such as `النار`, `الرياح`, `الماء`, `التحول`.
 
-## Mobile / Bedrock controls — Touch GUI (2.3.7)
+## Mobile / Bedrock controls — Touch GUI (2.3.8)
 The plugin now includes an in-game touch-friendly control panel. With Geyser, Bedrock inventory screens are translated to Bedrock UI, so mobile players can tap the menu buttons and Bedrock PC players can click them with a mouse.
 
 Open the panel with `/gwm` or `/gwm menu` (also `/gwm touch`, `/gwm mobile`, or `/gwm controls`). It provides:
@@ -61,7 +78,7 @@ The menu is an on-demand inventory screen, not permanent floating HUD buttons. T
 | `/gmagic forms` | View Shapeshift forms |
 | `/gmagic unmorph` | Return to normal appearance |
 
-Native Java PC controls remain: F/offhand-swap to toggle Power Mode, hotbar scroll to switch moves, right-click to cast, and Shift to stop flight. Bedrock PC can use the touch panel with mouse clicks or the command fallback.
+Java PC controls: F toggles Power Mode, hotbar scroll switches moves, right-click casts (including in open air), and Shift stops flight. During Power Mode, the plugin temporarily holds a marked Power Core in the main hand and restores the exact previous item/slot when the mode ends. Bedrock PC and mobile can use the touch panel with mouse/tap input or the command fallback.
 
 ---
 
@@ -346,3 +363,9 @@ Every element has its own particle shape and texture (`Fx.java`), used by the em
 | Light | sun-star rays + rotating halo |
 | Sound | concentric sound-wave rings travelling forward |
 | Crystal | rotating glowing octahedron |
+
+
+## 2.3.8 — Initial right-click fix (superseded by 2.3.9)
+- Initially accepted right-click events from both hands when the offhand contained the Power Core.
+- Added a 5ms duplicate-event guard only to prevent one dual-hand packet from casting twice; it does not add an ability cooldown.
+- 2.3.9 replaces the offhand core with a main-hand core to make RIGHT_CLICK_AIR more dependable on Bedrock/Geyser clients.

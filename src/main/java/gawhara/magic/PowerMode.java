@@ -71,8 +71,10 @@ import java.util.function.Consumer;
  *   كليك يمين    : استخدام القدرة المختارة
  *   كليك شمال    : ضربة بقوتك (ضرر زيادة + تأثير العنصر) بمانا قليلة   (بدل G)
  *
- * عشان كليك يمين يشتغل واليد فاضية (ماينكرافت مبيبعتش الحدث في الهوا) بنحط "قلب القوة"
- * في اليد التانية (Offhand) وقت التفعيل، وبنرجّع اللي كان فيها أول ما توقف الوضع.
+ * عشان كليك يمين يشتغل في الهوا على Java وBedrock/Geyser، بنحط "قلب القوة"
+ * مؤقتًا في اليد الأساسية (Main Hand) وقت التفعيل، ونحفظ العنصر الأصلي ونرجّعه
+ * لنفس خانة الهوتبار عند إيقاف الوضع. وجود عنصر في اليد الأساسية يضمن إرسال تفاعل
+ * RIGHT_CLICK_AIR بدل الاعتماد على اليد الفاضية أو دعم Offhand في عميل Bedrock.
  */
 final class PowerMode implements Listener {
 
@@ -193,6 +195,8 @@ final class PowerMode implements Listener {
     private final Map<UUID, Integer> selected = new HashMap<>();
     private final Set<UUID> busy = new HashSet<>();
     private final Map<UUID, BukkitRunnable> flights = new HashMap<>();
+    // حماية صغيرة من تكرار نفس حزمة التفاعل خلال 5ms فقط؛ ليست كولداون للقدرات.
+    private final Map<UUID, Long> lastInteractNanos = new HashMap<>();
     private record AffinityCache(long checkedAt, Element element, boolean empowered) {}
     private final Map<String, AffinityCache> affinityCache = new HashMap<>();
     private long tick = 0;
@@ -239,8 +243,9 @@ final class PowerMode implements Listener {
         ItemMeta m = it.getItemMeta();
         m.displayName(Magic.c(el.color + "✦ قلب القوة — " + el.ar));
         List<net.kyori.adventure.text.Component> lore = new ArrayList<>();
-        lore.add(Magic.c("§7كليك يمين: استخدم القدرة | سكرول: بدّل القدرة"));
-        lore.add(Magic.c("§7كليك شمال: ضربة بقوتك | F: إيقاف الوضع"));
+        lore.add(Magic.c("§7كليك يمين في الهوا أو على بلوك عادي: استخدم القدرة"));
+        lore.add(Magic.c("§7سكرول: بدّل القدرة | كليك شمال: ضربة بقوتك"));
+        lore.add(Magic.c("§7F: إيقاف الوضع | /gwm use: استخدام بديل"));
         m.lore(lore);
         m.addEnchant(org.bukkit.enchantments.Enchantment.UNBREAKING, 1, true);
         m.addItemFlags(ItemFlag.HIDE_ENCHANTS);
@@ -274,11 +279,11 @@ final class PowerMode implements Listener {
         return removed;
     }
 
-    /** يرجّع اللي كان في اليد التانية لو السيرفر وقع وهو الوضع شغال. */
+    /** يعيد العنصر الأصلي إلى خانة الهوتبار بعد إعادة تشغيل السيرفر أو الخروج. */
     private void cleanup(Player p) {
         String u = p.getUniqueId().toString();
         if (!active.contains(p.getUniqueId())) {
-            if (store.getBoolean("active." + u, false) || hasCore(p)) restoreOffhand(p);
+            if (store.getBoolean("active." + u, false) || hasCore(p)) restoreMainHand(p);
         }
         stripWeapons(p);
     }
@@ -302,17 +307,21 @@ final class PowerMode implements Listener {
         }
         UUID id = p.getUniqueId();
         PlayerInventory inv = p.getInventory();
-        ItemStack off = inv.getItemInOffHand();
-        boolean has = off != null && off.getType() != Material.AIR && !isCore(off);
-        store.set("saved." + id, has ? off.clone() : null);
+        int heldSlot = inv.getHeldItemSlot();
+        ItemStack main = inv.getItemInMainHand();
+        boolean has = main != null && main.getType() != Material.AIR && !isCore(main);
+        store.set("saved-main." + id, has ? main.clone() : null);
+        store.set("saved-slot." + id, heldSlot);
         store.set("active." + id, true);
         saveStore();
-        inv.setItemInOffHand(makeCore(el));
+        // وجود قلب القوة في اليد الأساسية يجعل RIGHT_CLICK_AIR موثوقًا
+        // حتى على عملاء Bedrock عبر Geyser الذين لا يعتمدون على Offhand.
+        inv.setItemInMainHand(makeCore(el));
         active.add(id);
         selected.putIfAbsent(id, 0);
         p.getWorld().playSound(p.getLocation(), Sound.BLOCK_BEACON_ACTIVATE, 0.9f, 1.4f);
         p.getWorld().spawnParticle(el.particle, p.getLocation().add(0, 1, 0), 40, 0.5, 0.8, 0.5, 0.05);
-        p.sendMessage(Magic.c(el.color + "✦ وضع القوة شغّال §7— سكرول لتبديل القدرة | كليك يمين للاستخدام | F للإيقاف"));
+        p.sendMessage(Magic.c(el.color + "✦ وضع القوة شغّال §7— كليك يمين في الهوا لاستخدام القدرة | سكرول للتبديل | F للإيقاف"));
         showSelected(p);
     }
 
@@ -320,23 +329,45 @@ final class PowerMode implements Listener {
         UUID id = p.getUniqueId();
         stopFlight(p, false, null);
         if (!active.remove(id)) return;
-        restoreOffhand(p);
+        restoreMainHand(p);
         if (!silent) {
             p.getWorld().playSound(p.getLocation(), Sound.BLOCK_BEACON_DEACTIVATE, 0.9f, 1.2f);
             p.sendActionBar(Magic.c("§7✦ وضع القوة اتقفل"));
         }
     }
 
-    private void restoreOffhand(Player p) {
+    private void restoreMainHand(Player p) {
         UUID id = p.getUniqueId();
         PlayerInventory inv = p.getInventory();
-        ItemStack saved = store.getItemStack("saved." + id);
+        ItemStack saved = store.getItemStack("saved-main." + id);
+        int slot = store.getInt("saved-slot." + id, inv.getHeldItemSlot());
         stripCores(p);
+
+        // توافق مع ملفات 2.3.7/2.3.8 القديمة التي كانت تحفظ العنصر الأصلي في Offhand.
+        ItemStack legacyOffhand = store.getItemStack("saved." + id);
         if (saved != null && saved.getType() != Material.AIR) {
-            if (inv.getItemInOffHand().getType() == Material.AIR) inv.setItemInOffHand(saved);
-            else for (ItemStack left : inv.addItem(saved).values())
+            int safeSlot = Math.max(0, Math.min(8, slot));
+            ItemStack current = inv.getItem(safeSlot);
+            // لو السيرفر حفظ اللاعب قبل وضع قلب القوة، العنصر الأصلي ما زال في مكانه؛
+            // لا نضيف نسخة ثانية منه أثناء استعادة حالة التحديث/إعادة التشغيل.
+            boolean alreadyRestored = current != null && current.getType() != Material.AIR
+                    && current.isSimilar(saved) && current.getAmount() == saved.getAmount();
+            if (!alreadyRestored) {
+                if (current == null || current.getType() == Material.AIR) {
+                    inv.setItem(safeSlot, saved);
+                } else {
+                    for (ItemStack left : inv.addItem(saved).values())
+                        p.getWorld().dropItemNaturally(p.getLocation(), left);
+                }
+            }
+        }
+        if (legacyOffhand != null && legacyOffhand.getType() != Material.AIR) {
+            if (inv.getItemInOffHand().getType() == Material.AIR) inv.setItemInOffHand(legacyOffhand);
+            else for (ItemStack left : inv.addItem(legacyOffhand).values())
                 p.getWorld().dropItemNaturally(p.getLocation(), left);
         }
+        store.set("saved-main." + id, null);
+        store.set("saved-slot." + id, null);
         store.set("saved." + id, null);
         store.set("active." + id, null);
         saveStore();
@@ -495,7 +526,7 @@ final class PowerMode implements Listener {
             if (p == null || !p.isOnline()) { active.remove(id); continue; }
             Element el = magic.getEl(p);
             if (el == null) { disable(p, true); continue; }
-            if (!isCore(p.getInventory().getItemInOffHand())) p.getInventory().setItemInOffHand(makeCore(el));
+            if (!isCore(p.getInventory().getItemInMainHand())) p.getInventory().setItemInMainHand(makeCore(el));
             Fx.aura(p, el, tick);
             if (el == Element.SHADOW && lightAt(p.getLocation().getBlock()) <= 4) {
                 effect(p, p, PotionEffectType.STRENGTH, 30, 0);
@@ -508,11 +539,12 @@ final class PowerMode implements Listener {
     @EventHandler(ignoreCancelled = true)
     public void onSwap(PlayerSwapHandItemsEvent e) {
         Player p = e.getPlayer();
-        // Shift + F بيدي درع الحماية (AdvancedSystems) واليد فاضية؛ ماندخلش فيه.
-        if (p.isSneaking() && p.getInventory().getItemInMainHand().getType() == Material.AIR) return;
+        ItemStack main = p.getInventory().getItemInMainHand();
+        // Shift + F مخصص للدرع: اسمح للـAdvancedSystems بالتعامل معه سواء
+        // كانت اليد فاضية (قبل تفعيل القوة) أو تحمل قلب القوة (أثناء التفعيل).
+        if (p.isSneaking() && (main.getType() == Material.AIR || (isActive(p) && isCore(main)))) return;
         if (magic.getEl(p) == null) return;
-        // لو الوضع مقفول وإيدك الأساسية ماسكة حاجة: F بينقلها بين الأيدي عادي.
-        if (!isActive(p) && p.getInventory().getItemInMainHand().getType() != Material.AIR) return;
+        // لم نعد نشترط إفراغ اليد: نحفظ العنصر الحالي ونضع قلب القوة مكانه مؤقتًا.
         e.setCancelled(true);
         toggle(p);
     }
@@ -528,24 +560,43 @@ final class PowerMode implements Listener {
         if (d != 0) cycle(p, d > 0 ? 1 : -1);
     }
 
-    @EventHandler(priority = EventPriority.HIGH)
+    @EventHandler(priority = EventPriority.HIGHEST)
     public void onUse(PlayerInteractEvent e) {
         Player p = e.getPlayer();
-        if (!isActive(p) || e.getHand() != EquipmentSlot.HAND) return;
-        Action a = e.getAction();
-        if (a != Action.RIGHT_CLICK_AIR && a != Action.RIGHT_CLICK_BLOCK) return;
-        if (a == Action.RIGHT_CLICK_BLOCK && e.getClickedBlock() != null
-                && e.getClickedBlock().getType().isInteractable() && !p.isSneaking()) return; // صناديق/أبواب عادية
+        if (!isActive(p)) return;
+        Action action = e.getAction();
+        // كليك يمين يشتغل سواء في الهوا تمامًا أو على بلوك عادي.
+        if (action != Action.RIGHT_CLICK_AIR && action != Action.RIGHT_CLICK_BLOCK) return;
+        // قلب القوة موجود في Main Hand؛ تجاهل حدث Offhand كي لا تتكرر الضغطة
+        // أو تتعارض مع درع/عنصر اللاعب الموجود في اليد الثانية.
+        if (e.getHand() != EquipmentSlot.HAND) return;
+
+        // لا نمنع فتح الصناديق والأبواب والأزرار. استخدم Shift أو /gwm use
+        // لو محتاج تطلق القدرة وأنت مستهدف بلوكًا تفاعليًا.
+        if (action == Action.RIGHT_CLICK_BLOCK && e.getClickedBlock() != null
+                && e.getClickedBlock().getType().isInteractable() && !p.isSneaking()) {
+            return;
+        }
+
+        if (duplicateInteract(p)) return;
         e.setCancelled(true);
         trigger(p);
     }
 
-    @EventHandler(priority = EventPriority.HIGH)
+    @EventHandler(priority = EventPriority.HIGHEST)
     public void onUseEntity(PlayerInteractEntityEvent e) {
         Player p = e.getPlayer();
         if (!isActive(p) || e.getHand() != EquipmentSlot.HAND) return;
+        if (duplicateInteract(p)) return;
         e.setCancelled(true);
         trigger(p);
+    }
+
+    private boolean duplicateInteract(Player player) {
+        long now = System.nanoTime();
+        UUID id = player.getUniqueId();
+        Long previous = lastInteractNanos.put(id, now);
+        return previous != null && now - previous >= 0L && now - previous < 5_000_000L;
     }
 
     private void trigger(Player p) {
@@ -580,7 +631,10 @@ final class PowerMode implements Listener {
         boolean core = isCore(e.getCurrentItem()) || isCore(e.getCursor());
         boolean offhandTouch = isActive(p) && (e.getClick() == ClickType.SWAP_OFFHAND
                 || (e.getClickedInventory() instanceof PlayerInventory && e.getSlot() == 40));
-        if (core || offhandTouch) e.setCancelled(true);
+        boolean hotbarCoreSwap = isActive(p) && e.getClick() == ClickType.NUMBER_KEY
+                && e.getHotbarButton() >= 0 && e.getHotbarButton() <= 8
+                && isCore(p.getInventory().getItem(e.getHotbarButton()));
+        if (core || offhandTouch || hotbarCoreSwap) e.setCancelled(true);
     }
 
     @EventHandler(priority = EventPriority.HIGH)
@@ -597,17 +651,26 @@ final class PowerMode implements Listener {
             e.getDrops().removeIf(this::isCore);
             return;
         }
-        ItemStack saved = store.getItemStack("saved." + p.getUniqueId());
+        UUID id = p.getUniqueId();
+        ItemStack saved = store.getItemStack("saved-main." + id);
+        int savedSlot = store.getInt("saved-slot." + id, p.getInventory().getHeldItemSlot());
+        ItemStack legacyOffhand = store.getItemStack("saved." + id);
         e.getDrops().removeIf(this::isCore);
-        active.remove(p.getUniqueId());
+        active.remove(id);
         if (e.getKeepInventory()) {
             stripCores(p);
-            if (saved != null) p.getInventory().setItemInOffHand(saved);
-        } else if (saved != null && saved.getType() != Material.AIR) {
-            e.getDrops().add(saved);
+            if (saved != null && saved.getType() != Material.AIR)
+                p.getInventory().setItem(Math.max(0, Math.min(8, savedSlot)), saved);
+            if (legacyOffhand != null && legacyOffhand.getType() != Material.AIR)
+                p.getInventory().setItemInOffHand(legacyOffhand);
+        } else {
+            if (saved != null && saved.getType() != Material.AIR) e.getDrops().add(saved);
+            if (legacyOffhand != null && legacyOffhand.getType() != Material.AIR) e.getDrops().add(legacyOffhand);
         }
-        store.set("saved." + p.getUniqueId(), null);
-        store.set("active." + p.getUniqueId(), null);
+        store.set("saved-main." + id, null);
+        store.set("saved-slot." + id, null);
+        store.set("saved." + id, null);
+        store.set("active." + id, null);
         saveStore();
     }
 
@@ -615,6 +678,7 @@ final class PowerMode implements Listener {
     public void onQuit(PlayerQuitEvent e) {
         disable(e.getPlayer(), true);
         selected.remove(e.getPlayer().getUniqueId());
+        lastInteractNanos.remove(e.getPlayer().getUniqueId());
         String cachePrefix = e.getPlayer().getUniqueId().toString() + ":";
         affinityCache.keySet().removeIf(key -> key.startsWith(cachePrefix));
     }

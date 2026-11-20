@@ -1,6 +1,6 @@
 name: GawharaMagic
 main: gawhara.magic.Magic
-version: 2.3.7
+version: 2.3.10
 api-version: '1.21'
 depend: [AuraSkills]
 softdepend: [LibsDisguises]

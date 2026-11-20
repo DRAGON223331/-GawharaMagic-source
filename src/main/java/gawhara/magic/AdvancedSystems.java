@@ -60,6 +60,7 @@ public final class AdvancedSystems implements Listener {
     private final org.bukkit.NamespacedKey relicKey;
     private final org.bukkit.NamespacedKey spiritOwnerKey;
     private final Map<UUID, Long> guardUntil = new HashMap<>();
+    private final Map<UUID, BukkitRunnable> spinTasks = new HashMap<>();
     private final Map<UUID, Long> awakeningUntil = new HashMap<>();
     private final Map<UUID, Long> forbiddenUntil = new HashMap<>();
     private final Map<UUID, Long> transformationUntil = new HashMap<>();
@@ -100,6 +101,8 @@ public final class AdvancedSystems implements Listener {
     }
 
     void shutdown() {
+        for (BukkitRunnable task : spinTasks.values()) task.cancel();
+        spinTasks.clear();
         save();
         for (World world : Bukkit.getWorlds()) {
             for (Entity entity : new ArrayList<>(world.getEntities())) {
@@ -327,27 +330,160 @@ public final class AdvancedSystems implements Listener {
     }
 
     // ------------------------------------------------------------ combat skill systems
+    /**
+     * Elemental Spinjitzu: a sustained, rotating tornado wrapped around the player.
+     * The particle texture follows the selected element; damage and knockback pulse
+     * once per second while the player keeps the spin active.
+     */
     void activateSpin(Player player) {
         if (!hasElement(player)) return;
+        UUID playerId = player.getUniqueId();
+
+        // Re-using the skill while it is active cleanly toggles it off. No cooldown is added.
+        BukkitRunnable active = spinTasks.remove(playerId);
+        if (active != null) {
+            active.cancel();
+            player.sendActionBar(Magic.c("§7أوقفت دوران العنصر."));
+            return;
+        }
+
         int tier = tier(player);
         if (!consumeMana(player, "spin", tier)) return;
         Element element = magic.getEl(player);
-        double radius = 3.5 + tier * 0.65;
-        showBurst(player, element, radius);
-        player.addPotionEffect(new PotionEffect(PotionEffectType.RESISTANCE, 50 + tier * 12, 0));
-        player.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, 60 + tier * 10, 0));
+        if (element == null) return;
+
+        int baseDuration = Math.max(2, plugin.getConfig().getInt("spin.duration-seconds", 5));
+        int durationTicks = baseDuration * 20 + Math.max(0, tier - 1) * 10;
+        int pulseTicks = Math.max(10, plugin.getConfig().getInt("spin.pulse-interval-ticks", 20));
+        double hitRadius = plugin.getConfig().getDouble("spin.radius", 3.4) + (tier - 1) * 0.18;
+        double damage = plugin.getConfig().getDouble("spin.damage-per-pulse", 1.5)
+                + (tier - 1) * plugin.getConfig().getDouble("spin.damage-per-tier", 0.2);
+        double knockback = plugin.getConfig().getDouble("spin.knockback", 0.68) + (tier - 1) * 0.055;
+
+        player.addPotionEffect(new PotionEffect(PotionEffectType.RESISTANCE, durationTicks + 5, 0));
+        player.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, durationTicks + 5, Math.min(1, tier / 4)));
+        player.getWorld().playSound(player.getLocation(), element.sound, 1.25f, 0.72f + tier * 0.06f);
+        magic.ring(player.getLocation(), element.particle, null, 1.9 + tier * 0.12, 8);
+        player.sendTitle(element.color + "✦ SPINJITZU ✦", "§fدوران " + element.ar, 3, 24, 6);
+        player.sendActionBar(Magic.c(element.color + "دوامة " + element.ar + " §7| أعد التفعيل لإيقافها"));
+        noteCast(player);
+
+        BukkitRunnable task = new BukkitRunnable() {
+            private int tick;
+
+            @Override
+            public void run() {
+                if (!player.isOnline() || player.isDead() || !player.isValid()
+                        || magic.getEl(player) != element || tick >= durationTicks) {
+                    finish();
+                    return;
+                }
+
+                emitSpinjitzuFrame(player, element, tick, tier);
+
+                if (tick % pulseTicks == 0) {
+                    pulseSpinjitzu(player, element, hitRadius, damage, knockback, tier);
+                }
+                if (tick > 0 && tick % 40 == 0) {
+                    player.getWorld().playSound(player.getLocation(), element.sound, 0.45f, 1.15f + (tick % 3) * 0.08f);
+                }
+                if (tick % 20 == 0) {
+                    player.sendActionBar(Magic.c(element.color + "✦ دوران " + element.ar + " §7| §f" +
+                            Math.max(0, (durationTicks - tick) / 20) + "s"));
+                }
+                tick++;
+            }
+
+            private void finish() {
+                spinTasks.remove(playerId, this);
+                cancel();
+                if (player.isOnline()) {
+                    player.sendActionBar(Magic.c("§7انتهى دوران العنصر."));
+                }
+            }
+        };
+        spinTasks.put(playerId, task);
+        task.runTaskTimer(plugin, 0L, 1L);
+    }
+
+    /** Draw three fast, counter-flowing elemental helices and two orbiting rings. */
+    private void emitSpinjitzuFrame(Player player, Element element, int tick, int tier) {
+        World world = player.getWorld();
+        Location center = player.getLocation().clone();
+        double phase = tick * (0.48 + tier * 0.025);
+        double width = 0.88 + Math.min(0.32, tier * 0.045);
+
+        // Three intertwined streams create the classic compact tornado silhouette.
+        for (int strand = 0; strand < 3; strand++) {
+            for (int segment = 0; segment < 10; segment++) {
+                double progress = segment / 9.0;
+                double y = 0.10 + progress * 2.25;
+                double radius = width * (0.78 + Math.sin(progress * Math.PI) * 0.28);
+                double angle = phase + progress * 4.4 + strand * (Math.PI * 2.0 / 3.0);
+                Location point = center.clone().add(Math.cos(angle) * radius, y,
+                        Math.sin(angle) * radius);
+                Fx.tex(world, point, element, 1, 0.012);
+            }
+        }
+
+        // Opposing ground and crown rings sell the fast spinning motion.
+        if (tick % 2 == 0) {
+            for (int point = 0; point < 14; point++) {
+                double angle = phase * 1.45 + point * (Math.PI * 2.0 / 14.0);
+                Location lower = center.clone().add(Math.cos(angle) * (width * 1.28), 0.16,
+                        Math.sin(angle) * (width * 1.28));
+                double crownAngle = -phase * 1.2 + point * (Math.PI * 2.0 / 14.0);
+                Location crown = center.clone().add(Math.cos(crownAngle) * (width * 0.72), 2.35,
+                        Math.sin(crownAngle) * (width * 0.72));
+                Fx.tex(world, lower, element, 1, 0.01);
+                Fx.tex(world, crown, element, 1, 0.01);
+            }
+        }
+
+        if (tick % 4 == 0) {
+            Location core = center.clone().add(0, 1.15, 0);
+            Fx.tex(world, core, element, 2, 0.10);
+            world.spawnParticle(Particle.CLOUD, center.clone().add(0, 0.15, 0), 3,
+                    0.35, 0.08, 0.35, 0.025);
+        }
+    }
+
+    /** A radial elemental hit each pulse, with allies and spectators excluded. */
+    private void pulseSpinjitzu(Player player, Element element, double radius,
+                                double damage, double knockback, int tier) {
+        Location center = player.getLocation().clone();
+        magic.ring(center, element.particle, null, radius, 5);
         for (LivingEntity target : magic.near(player, radius)) {
-            if (isSpirit(target)) continue;
+            if (target.isDead() || isSpirit(target)) continue;
             if (target instanceof Player other) {
                 if (other.getGameMode() == GameMode.SPECTATOR || magic.getEl(other) == element) continue;
             }
-            Vector away = target.getLocation().toVector().subtract(player.getLocation().toVector()).setY(0);
-            if (away.lengthSquared() > 0.001) away.normalize();
-            target.setVelocity(away.multiply(0.45 + tier * 0.10).setY(0.15));
-            target.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 25 + tier * 7, 0));
+
+            magic.elementalDamage(player, target, damage, element);
+            magic.push(player, element, target, center, knockback, 0.22 + tier * 0.035);
+            switch (element) {
+                case FIRE -> target.setFireTicks(Math.max(target.getFireTicks(), 35 + tier * 5));
+                case WATER, EARTH -> magic.addEnvironmentEffect(player, element, target,
+                        PotionEffectType.SLOWNESS, 24 + tier * 5, 0);
+                case WIND -> magic.addEnvironmentEffect(player, element, target,
+                        PotionEffectType.LEVITATION, 8 + tier, 0);
+                case SHADOW -> magic.addEnvironmentEffect(player, element, target,
+                        PotionEffectType.BLINDNESS, 12 + tier * 2, 0);
+                case ICE, CRYSTAL -> magic.addEnvironmentEffect(player, element, target,
+                        PotionEffectType.SLOWNESS, 36 + tier * 6, 1);
+                case LIGHTNING -> magic.addEnvironmentEffect(player, element, target,
+                        PotionEffectType.GLOWING, 30 + tier * 5, 0);
+                case LIGHT -> magic.addEnvironmentEffect(player, element, target,
+                        PotionEffectType.GLOWING, 45 + tier * 5, 0);
+                case NATURE -> magic.addEnvironmentEffect(player, element, target,
+                        PotionEffectType.POISON, 16 + tier * 3, 0);
+                case SOUND -> magic.addEnvironmentEffect(player, element, target,
+                        PotionEffectType.WEAKNESS, 20 + tier * 4, 0);
+                case METAL -> magic.addEnvironmentEffect(player, element, target,
+                        PotionEffectType.SLOWNESS, 18 + tier * 3, 0);
+                case SHAPESHIFT -> { /* The learned form's own skills remain separate. */ }
+            }
         }
-        player.sendMessage(Magic.c(element.color + "✦ الدوران العنصري اتفعل! §7(درجة " + tier + "/6)"));
-        noteCast(player);
     }
 
     void activateUltimate(Player player) {
@@ -821,6 +957,8 @@ public final class AdvancedSystems implements Listener {
         removeSpirit(player.getUniqueId());
         spiritGiftAt.remove(player.getUniqueId());
         lastTravelLocation.remove(player.getUniqueId());
+        BukkitRunnable spin = spinTasks.remove(player.getUniqueId());
+        if (spin != null) spin.cancel();
         save();
     }
 
@@ -992,7 +1130,10 @@ public final class AdvancedSystems implements Listener {
     public void onSpinGesture(PlayerInteractEvent event) {
         if (event.getHand() != EquipmentSlot.HAND || event.getAction() != Action.LEFT_CLICK_AIR) return;
         Player player = event.getPlayer();
-        if (!player.isSneaking() || player.getInventory().getItemInMainHand().getType() != Material.AIR) return;
+        boolean emptyHand = player.getInventory().getItemInMainHand().getType() == Material.AIR;
+        boolean powerCore = magic.power != null && magic.power.isActive(player)
+                && magic.power.isCore(player.getInventory().getItemInMainHand());
+        if (!player.isSneaking() || (!emptyHand && !powerCore)) return;
         event.setCancelled(true);
         activateSpin(player);
     }
@@ -1000,7 +1141,10 @@ public final class AdvancedSystems implements Listener {
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onGuardGesture(PlayerSwapHandItemsEvent event) {
         Player player = event.getPlayer();
-        if (!player.isSneaking() || player.getInventory().getItemInMainHand().getType() != Material.AIR) return;
+        boolean emptyHand = player.getInventory().getItemInMainHand().getType() == Material.AIR;
+        boolean powerCore = magic.power != null && magic.power.isActive(player)
+                && magic.power.isCore(player.getInventory().getItemInMainHand());
+        if (!player.isSneaking() || (!emptyHand && !powerCore)) return;
         event.setCancelled(true);
         activateGuard(player);
     }

@@ -1,4 +1,14 @@
-# GawharaMagic 2.3.7 - 50 move unlocks, evolved flight, environmental affinities, no cooldowns, OP mana bypass.
+# GawharaMagic 2.3.10 - Elemental Spinjitzu, 50 move unlocks, evolved flight, environmental affinities,
+# no cooldowns, OP mana bypass, and Bedrock touch controls.
+# Spinjitzu-style elemental tornado. Re-activate the skill to stop it early.
+spin:
+  duration-seconds: 5
+  radius: 3.4
+  damage-per-pulse: 1.5
+  damage-per-tier: 0.2
+  pulse-interval-ticks: 20
+  knockback: 0.68
+
 mana:
   level-scale: 1.25
   base-move: 8.0
