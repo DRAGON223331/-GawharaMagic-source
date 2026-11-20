@@ -1088,7 +1088,9 @@ final class Moves {
     // ================================================================ SHADOW
 
     private boolean shadowAfterimages(Player p, int tier) {
-        sound(p.getLocation(), Sound.ENTITY_ENDERMAN_TELEPORT, 0.7f);
+        // Keep the cast location fixed so the afterimages form around the ability's origin.
+        Location origin = p.getLocation().clone();
+        sound(origin, Sound.ENTITY_ENDERMAN_TELEPORT, 0.7f);
         for (int i = 0; i < 4; i++) {
             double a = Math.PI * 2 * i / 4;
             Location shade = origin.clone().add(Math.cos(a) * 2, 0.2, Math.sin(a) * 2);

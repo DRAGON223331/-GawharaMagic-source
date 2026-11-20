@@ -1,4 +1,4 @@
-تعديلات 2.3.0
+تعديلات 2.3.1
 =============
 1) GawharaMagic/  -> لازم يتبني من جديد:  mvn -B clean package  (Java 21)  أو GitHub Actions
    انسخ target/GawharaMagic.jar لـ plugins/ وامسح النسخة القديمة.
