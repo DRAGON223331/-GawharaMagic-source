@@ -1,3 +1,50 @@
+# GawharaMagic 2.3.6 — OP Full Access + Admin Player Editor + Cross-platform Controls
+
+## OP access
+- OP has virtual level 100 for GawharaMagic checks; this does not write artificial XP/points to the player's saved progression.
+- All 50 techniques of the selected element are unlocked immediately, with no leveling or secret trials required.
+- All ten Shapeshift forms are immediately available to OP without killing the corresponding mobs.
+- OP bypasses the level/reputation gates of the advanced power systems and continues to use abilities without mana costs.
+- OP can switch between all 13 elements with `/gmagic choose` (GUI) or `/gmagic element <ELEMENT>` without resetting saved progress.
+- Non-OP players retain the normal progression, trials, kill-to-learn forms, and mana requirements.
+
+## Admin commands
+Requires `gawhara.magic.admin` (default: OP). Targets must be online for these live edits.
+
+| Command | Effect |
+|---|---|
+| `/gmagic admin help` | Show all admin commands |
+| `/gmagic admin info <player>` | View element, level, points, trials, mana, and reputation |
+| `/gmagic admin element <player> <FIRE/WIND/...>` | Change the player's element without wiping their existing progress |
+| `/gmagic admin level <player> <1-100>` | Set level and matching completed secret trials |
+| `/gmagic admin points <player> <amount>` | Set progression points |
+| `/gmagic admin trials <player> <0-20>` | Set completed secret trials |
+| `/gmagic admin mana <player> <amount>` | Set current AuraSkills mana (clamped to the player's maximum) |
+| `/gmagic admin reputation <player> <amount>` | Set elemental reputation |
+| `/gmagic admin forms <player> all` | Unlock all ten Shapeshift forms |
+| `/gmagic admin forms <player> <SPIDER/CREEPER/...>` | Unlock one form |
+| `/gmagic admin forms <player> clear` | Clear learned forms |
+| `/gmagic admin reset <player>` | Reset the player's GawharaMagic progress and magic items |
+
+Element values accept English enum names or Arabic labels such as `النار`, `الرياح`, `الماء`, `التحول`.
+
+## Mobile / Bedrock controls
+These chat commands work on Bedrock clients through Geyser and on Java, so touch players do not need the Java F key or mouse wheel:
+
+| Command | Action |
+|---|---|
+| `/gwm pw` | Toggle Power Mode |
+| `/gwm next` | Select next unlocked technique |
+| `/gwm prev` | Select previous unlocked technique |
+| `/gwm use` | Cast selected technique |
+| `/gwm ab` | List the techniques available to the selected element |
+| `/gmagic forms` | View Shapeshift forms |
+| `/gmagic unmorph` | Return to normal appearance |
+
+Native PC controls remain: F/offhand-swap to toggle Power Mode, hotbar scroll to switch moves, right-click to cast, and Shift to stop flight. This release exposes command controls for touch devices; it does not add on-screen touch buttons.
+
+---
+
 # GawharaMagic 2.3.5 — 50 تقنية متدرجة + طيران الرياح والنار + تعزيز البيئة
 
 كل عنصر يحتفظ بعشر حركات أصلية مستقلة، ثم يفتح أربع درجات تطور إضافية لهذه الحركات. بذلك توجد 50 تقنية قابلة للفتح لكل عنصر: أول 10 حركات أصلية، ثم 40 نسخة متطورة تضيف تأثيرًا خاصًا بالعنصر. عنصر التحول يحتفظ بالأشكال العشرة التي يجب تعلمها بالقتل، ثم تتاح تطورات قدراتها مع التقدم.

@@ -363,6 +363,11 @@ final class PowerMode implements Listener {
 
     void useSelected(Player p) { cast(p); }
 
+    void resetSelection(Player p) {
+        selected.put(p.getUniqueId(), 0);
+        if (isActive(p)) showSelected(p);
+    }
+
     private int moveUnlockMaxLevel() {
         return Math.max(1, Math.min(50, magic.getConfig().getInt("progression.move-unlocks-max-level", 50)));
     }
@@ -372,8 +377,10 @@ final class PowerMode implements Listener {
     }
 
     private boolean abilityUnlocked(Player player, Element element, int index) {
-        if (index < 0 || index >= ABS.get(element).length
-                || magic.levelOf(player) < requiredAbilityLevel(element, index)) return false;
+        if (index < 0 || index >= ABS.get(element).length) return false;
+        // OP can test every move immediately, without level progression.
+        if (player.isOp()) return true;
+        if (magic.levelOf(player) < requiredAbilityLevel(element, index)) return false;
         if (element == Element.SHAPESHIFT) {
             int formIndex = ABS.get(element)[index].baseIndex();
             return magic.shapeshift != null && magic.shapeshift.hasForm(player, formIndex);

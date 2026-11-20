@@ -1,3 +1,26 @@
+GawharaMagic 2.3.6
+
+صلاحيات OP: كل الحركات الخمسين وأشكال التحول العشرة مفتوحة فورًا، بدون تطوير أو قتل كائنات أو اختبارات، ومع مانا مجانية. المستوى 100 للـOP افتراضي داخل البلاجن ولا يغيّر نقاطه المحفوظة. يقدر يبدّل بين العناصر الثلاثة عشر باستخدام /gmagic choose أو /gmagic element <ELEMENT> بدون تصفير تقدمه المحفوظ.
+
+أوامر الإدارة (لـOP أو gawhara.magic.admin):
+/gmagic admin help
+/gmagic admin element <player> <FIRE/WIND/WATER/EARTH/LIGHTNING/SHADOW/ICE/METAL/NATURE/LIGHT/SOUND/CRYSTAL/SHAPESHIFT>
+/gmagic admin level <player> <1-100>
+/gmagic admin points <player> <amount>
+/gmagic admin trials <player> <0-20>
+/gmagic admin mana <player> <amount>
+/gmagic admin reputation <player> <amount>
+/gmagic admin forms <player> <all|SPIDER|CREEPER|SKELETON|BLAZE|GHAST|WARDEN|IRON_GOLEM|EVOKER|ENDER_DRAGON|ENDERMAN|clear>
+/gmagic admin reset <player>
+/gmagic admin info <player>
+
+ملاحظة: أوامر التعديل المباشر تستهدف اللاعبين المتصلين حاليًا. المانا يتم تعديلها في AuraSkills وتُحدّ حتى الحد الأقصى للاعب.
+
+تحكم Bedrock والموبايل من الشات:
+/gwm pw = تشغيل/إيقاف وضع القوة
+/gwm next = الحركة التالية | /gwm prev = الحركة السابقة | /gwm use = استخدام الحركة
+/gwm ab = عرض الحركات | /gmagic forms = سجل التحول
+
 تعديلات 2.3.5
 =============
 1) كل عنصر أصبح لديه 50 تقنية قابلة للفتح: أول 10 حركات أصلية، ثم أربع درجات تطور لكل حركة تضيف تأثيرًا خاصًا بالعنصر.

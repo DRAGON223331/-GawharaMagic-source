@@ -144,6 +144,13 @@ public final class AdvancedSystems implements Listener {
         return user == null ? 0.0 : user.getMaxMana();
     }
 
+    boolean setMana(Player player, double amount) {
+        SkillsUser user = auraUser(player);
+        if (user == null) return false;
+        user.setMana(Math.max(0.0, Math.min(user.getMaxMana(), amount)));
+        return true;
+    }
+
     boolean consumeMoveMana(Player player, int tier) {
         return consumeMana(player, "base-move", tier);
     }
@@ -258,8 +265,18 @@ public final class AdvancedSystems implements Listener {
                 + "§7 / §f" + String.format(Locale.US, "%.1f", user.getMaxMana()) + " §b(AuraSkills)"));
     }
 
+    int reputationValue(Player player) {
+        return player.isOp() ? 10000 : data.getInt(path(player) + ".reputation", 0);
+    }
+
     private int reputation(Player player) {
-        return data.getInt(path(player) + ".reputation", 0);
+        return reputationValue(player);
+    }
+
+    void setReputation(Player player, int amount) {
+        data.set(path(player) + ".reputation", Math.max(0, amount));
+        changed();
+        save();
     }
 
     private void addReputation(Player player, int amount, String reason) {

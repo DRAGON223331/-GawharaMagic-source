@@ -109,6 +109,11 @@ final class ShapeshiftSystem implements Listener {
 
     List<String> learnedNames(Player player) {
         List<String> names = new ArrayList<>();
+        // OP can use every transformation form without grinding kills.
+        if (player.isOp()) {
+            for (Form form : Form.values()) names.add(form.name());
+            return names;
+        }
         for (String raw : magic.data.getStringList(path(player))) {
             try {
                 Form.valueOf(raw);
@@ -121,12 +126,14 @@ final class ShapeshiftSystem implements Listener {
     }
 
     int capacity(Player player) {
-        // Level 1 opens the first slot; each level opens one more, up to ten.
+        // OP has all ten slots immediately; normal players unlock one per level.
+        if (player.isOp()) return Form.values().length;
         return Math.max(1, Math.min(Form.values().length, magic.levelOf(player)));
     }
 
     boolean hasForm(Player player, int index) {
         if (index < 0 || index >= Form.values().length) return false;
+        if (player.isOp()) return true;
         return learnedNames(player).contains(Form.values()[index].name());
     }
 
@@ -176,6 +183,54 @@ final class ShapeshiftSystem implements Listener {
             player.sendMessage(Magic.c("§d✦ قوة التحول تطورت! §fفتحت خانة جديدة §e(" + newCapacity + "/10)"));
             player.sendMessage(Magic.c("§7اقتُل كائنًا جديدًا من القائمة لتتعلم شكله وقدرته الخاصة."));
         }
+    }
+
+    void unlockAllForms(Player player) {
+        List<String> all = new ArrayList<>();
+        for (Form form : Form.values()) all.add(form.name());
+        magic.data.set(path(player), all);
+        magic.dirty = true;
+        magic.save();
+    }
+
+    void clearForms(Player player) {
+        magic.data.set(path(player), null);
+        magic.dirty = true;
+        magic.save();
+        endForm(player, false);
+    }
+
+    void stopActiveForm(Player player) {
+        endForm(player, false);
+    }
+
+    String unlockForm(Player player, String rawName) {
+        if (rawName == null) return null;
+        Form matched = null;
+        for (Form form : Form.values()) {
+            if (form.name().equalsIgnoreCase(rawName) || form.ar.equalsIgnoreCase(rawName)) {
+                matched = form;
+                break;
+            }
+        }
+        if (matched == null) return null;
+        List<String> learned = new ArrayList<>(learnedNamesForStorage(player));
+        if (!learned.contains(matched.name())) learned.add(matched.name());
+        magic.data.set(path(player), learned);
+        magic.dirty = true;
+        magic.save();
+        return matched.ar;
+    }
+
+    private List<String> learnedNamesForStorage(Player player) {
+        List<String> names = new ArrayList<>();
+        for (String raw : magic.data.getStringList(path(player))) {
+            try {
+                Form.valueOf(raw);
+                if (!names.contains(raw)) names.add(raw);
+            } catch (IllegalArgumentException ignored) { }
+        }
+        return names;
     }
 
     void showForms(Player player) {

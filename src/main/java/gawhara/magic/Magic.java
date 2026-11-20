@@ -175,6 +175,8 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
     int pts(Player p) { return data.getInt(playerPath(p) + ".points", 0); }
 
     int completedTrials(Player p) {
+        // OP is a full-access tester/admin: secret trials never gate their content.
+        if (p.isOp()) return TOTAL_TRIALS;
         return Math.max(0, Math.min(TOTAL_TRIALS, data.getInt(playerPath(p) + ".trialsCompleted", 0)));
     }
 
@@ -196,10 +198,13 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
     }
 
     int unlockedCap(Player p) {
+        if (p.isOp()) return MAX_LEVEL;
         return Math.min(MAX_LEVEL, (completedTrials(p) + 1) * 5);
     }
 
     int levelOf(Player p) {
+        // OP receives virtual max level without writing artificial progress to data.yml.
+        if (p.isOp()) return MAX_LEVEL;
         return Math.min(rawLevelOf(pts(p)), unlockedCap(p));
     }
 
@@ -493,7 +498,7 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
                 lore.add(c("§7اجمع النقاط من اللعب وافتح المستويات بالتدريج"));
             }
             lore.add(c(" "));
-            lore.add(c("§a▶ اضغط عشان تختارها (مرة واحدة بس)"));
+            lore.add(c(p.isOp() ? "§d▶ OP: اضغط لاختيار/تغيير العنصر في أي وقت" : "§a▶ اضغط عشان تختارها (مرة واحدة بس)"));
             m.lore(lore);
             m.addEnchant(Enchantment.UNBREAKING, 1, true);
             m.addItemFlags(ItemFlag.HIDE_ENCHANTS);
@@ -510,7 +515,7 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
         e.setCancelled(true);
         if (!(e.getWhoClicked() instanceof Player p)) return;
         if (e.getClickedInventory() == null || e.getClickedInventory() != e.getInventory()) return;
-        if (getEl(p) != null) { p.closeInventory(); return; }
+        if (getEl(p) != null && !p.isOp()) { p.closeInventory(); return; }
         for (int i = 0; i < SLOTS.length; i++) {
             if (e.getSlot() == SLOTS[i]) { choose(p, Element.values()[i]); return; }
         }
@@ -522,14 +527,23 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
     }
 
     void choose(Player p, Element el) {
+        boolean firstChoice = getEl(p) == null;
+        if (!firstChoice && !p.isOp()) return;
+        if (shapeshift != null && !firstChoice) shapeshift.stopActiveForm(p);
         data.set("players." + p.getUniqueId() + ".element", el.name());
-        data.set("players." + p.getUniqueId() + ".points", 0);
-        data.set("players." + p.getUniqueId() + ".trialsCompleted", 0);
-        data.set("players." + p.getUniqueId() + ".trialProgress", 0);
+        // OP can switch schools for testing without wiping saved player progress.
+        if (firstChoice) {
+            data.set("players." + p.getUniqueId() + ".points", 0);
+            data.set("players." + p.getUniqueId() + ".trialsCompleted", 0);
+            data.set("players." + p.getUniqueId() + ".trialProgress", 0);
+        }
+        if (power != null) power.resetSelection(p);
         save();
         p.closeInventory();
         if (!isUnarmedOnly(el)) giveWeapon(p, el, 1);
-        p.sendMessage(c("§6✦ §fاتعلمت قوة " + el.color + el.ar + "§f! اجمع النقاط من اللعب، واكتشف الاختبارات السرية."));
+        p.sendMessage(c(p.isOp()
+                ? "§d✦ تم اختيار " + el.color + el.ar + " §7— كل قدرات العنصر مفتوحة لك كـ OP."
+                : "§6✦ §fاتعلمت قوة " + el.color + el.ar + "§f! اجمع النقاط من اللعب، واكتشف الاختبارات السرية."));
         p.sendMessage(c("§eوضع القوة: اضغط §fF §eللتفعيل | سكرول للتبديل | كليك يمين للاستخدام | كليك شمال للضرب بقوتك."));
         p.sendMessage(c("§7حركتك الحالية: " + el.color + unarmedMoveName(el) + " §8| §7تتطور مع المستوى."));
         if (el != Element.SHAPESHIFT) {
@@ -541,6 +555,7 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
             p.sendMessage(c("§7كل مستوى يفتح خانة إضافية؛ الحد الأقصى 10 أشكال."));
         }
         p.sendMessage(c("§7اكتب §e/gmagic powers §7لرؤية وصف القوى الثلاث عشرة."));
+        if (p.isOp()) p.sendMessage(c("§dOP: /gmagic choose §7لتغيير العنصر من غير تصفير التقدم، وكل الحركات والأشكال مفتوحة لك."));
         p.showTitle(net.kyori.adventure.title.Title.title(
                 c(el.color + "✦ قوة " + el.ar + " ✦"), c("§7قوتك وحركتك بدون سلاح جاهزين")));
         celebrate(p, el);
@@ -1804,6 +1819,168 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
         p.playSound(p.getLocation(), Sound.BLOCK_BEACON_POWER_SELECT, 1f, 1.3f);
     }
 
+    // ------------------------------------------------------------ admin editing
+    private void adminHelp(CommandSender sender) {
+        sender.sendMessage(c("§6✦ GawharaMagic Admin — أوامر تعديل اللاعبين"));
+        sender.sendMessage(c("§e/gmagic admin element <player> <ELEMENT> §7تغيير عنصر اللاعب"));
+        sender.sendMessage(c("§e/gmagic admin level <player> <1-100> §7تحديد المستوى"));
+        sender.sendMessage(c("§e/gmagic admin points <player> <amount> §7تحديد نقاط التقدم"));
+        sender.sendMessage(c("§e/gmagic admin trials <player> <0-20> §7تحديد الاختبارات المكتملة"));
+        sender.sendMessage(c("§e/gmagic admin mana <player> <amount> §7تحديد مانا AuraSkills"));
+        sender.sendMessage(c("§e/gmagic admin reputation <player> <amount> §7تحديد السمعة"));
+        sender.sendMessage(c("§e/gmagic admin forms <player> <all|spider|creeper|...|clear> §7إدارة أشكال التحول"));
+        sender.sendMessage(c("§e/gmagic admin reset <player> §7تصفير بيانات القوة"));
+        sender.sendMessage(c("§e/gmagic admin info <player> §7عرض بيانات اللاعب"));
+        sender.sendMessage(c("§8كل الأوامر دي تحتاج gawhara.magic.admin (متاحة للـOP افتراضيًا)."));
+    }
+
+    private Element parseElement(String raw) {
+        if (raw == null) return null;
+        String normalized = raw.trim();
+        for (Element element : Element.values()) {
+            if (element.name().equalsIgnoreCase(normalized) || element.ar.equalsIgnoreCase(normalized)) return element;
+        }
+        return switch (normalized.toLowerCase(java.util.Locale.ROOT)) {
+            case "wind", "air", "رياح", "الهواء" -> Element.WIND;
+            case "fire", "نار" -> Element.FIRE;
+            case "water", "ماء", "ماية" -> Element.WATER;
+            case "earth", "أرض", "ارض" -> Element.EARTH;
+            case "lightning", "thunder", "برق" -> Element.LIGHTNING;
+            case "shadow", "dark", "ظلام" -> Element.SHADOW;
+            case "ice", "جليد", "تلج" -> Element.ICE;
+            case "metal", "معدن" -> Element.METAL;
+            case "nature", "طبيعة" -> Element.NATURE;
+            case "light", "نور" -> Element.LIGHT;
+            case "sound", "صوت" -> Element.SOUND;
+            case "crystal", "كريستال" -> Element.CRYSTAL;
+            case "shapeshift", "transform", "التحول", "تحول" -> Element.SHAPESHIFT;
+            default -> null;
+        };
+    }
+
+    private Player adminTarget(CommandSender sender, String name) {
+        Player target = Bukkit.getPlayerExact(name);
+        if (target == null) sender.sendMessage(c("§cاللاعب لازم يكون أونلاين حاليًا لتنفيذ التعديل: " + name));
+        return target;
+    }
+
+    private boolean handleAdminCommand(CommandSender sender, String[] args) {
+        if (args.length == 0 || !args[0].equalsIgnoreCase("admin")) return false;
+        if (!sender.hasPermission("gawhara.magic.admin")) {
+            sender.sendMessage(c("§cمعندكش صلاحية إدارة GawharaMagic."));
+            return true;
+        }
+        if (args.length == 1 || args[1].equalsIgnoreCase("help")) { adminHelp(sender); return true; }
+        if (args[1].equalsIgnoreCase("info")) {
+            if (args.length < 3) { adminHelp(sender); return true; }
+            Player target = adminTarget(sender, args[2]);
+            if (target == null) return true;
+            Element element = getEl(target);
+            sender.sendMessage(c("§6✦ " + target.getName() + " §7| العنصر: §f" + (element == null ? "غير محدد" : element.ar)
+                    + " §7| المستوى: §e" + levelOf(target) + " §7| النقاط: §f" + pts(target)
+                    + " §7| الاختبارات: §f" + completedTrials(target) + "/" + TOTAL_TRIALS));
+            if (advanced != null) sender.sendMessage(c("§7المانا: §b" + String.format(java.util.Locale.US, "%.1f", advanced.mana(target))
+                    + " §7| السمعة: §d" + advanced.reputationValue(target)));
+            return true;
+        }
+        if (args.length < 3) { adminHelp(sender); return true; }
+        String action = args[1].toLowerCase(java.util.Locale.ROOT);
+        Player target = adminTarget(sender, args[2]);
+        if (target == null) return true;
+        try {
+            switch (action) {
+                case "element" -> {
+                    if (args.length < 4) { adminHelp(sender); return true; }
+                    Element element = parseElement(args[3]);
+                    if (element == null) { sender.sendMessage(c("§cعنصر غير معروف. استخدم اسم العنصر بالإنجليزي أو العربي.")); return true; }
+                    if (shapeshift != null) shapeshift.stopActiveForm(target);
+                    data.set(playerPath(target) + ".element", element.name());
+                    dirty = true; save();
+                    if (power != null) power.resetSelection(target);
+                    sender.sendMessage(c("§aتم تغيير عنصر " + target.getName() + " إلى " + element.ar));
+                    target.sendMessage(c("§d✦ تم تغيير قوتك إلى " + element.ar + " بواسطة الإدارة."));
+                }
+                case "level" -> {
+                    if (args.length < 4) { adminHelp(sender); return true; }
+                    int level = Math.max(1, Math.min(MAX_LEVEL, Integer.parseInt(args[3])));
+                    data.set(playerPath(target) + ".points", pointsForLevel(level));
+                    data.set(playerPath(target) + ".trialsCompleted", Math.min(TOTAL_TRIALS, level / 5));
+                    data.set(playerPath(target) + ".trialProgress", 0);
+                    dirty = true; save();
+                    sender.sendMessage(c("§aتم ضبط مستوى " + target.getName() + " إلى " + level));
+                    target.sendMessage(c("§6✦ الإدارة ضبطت مستواك إلى " + level));
+                }
+                case "points" -> {
+                    if (args.length < 4) { adminHelp(sender); return true; }
+                    int points = Math.max(0, Integer.parseInt(args[3]));
+                    data.set(playerPath(target) + ".points", points);
+                    dirty = true; save();
+                    sender.sendMessage(c("§aتم ضبط نقاط " + target.getName() + " إلى " + points + " (المستوى الحالي " + levelOf(target) + ")"));
+                    target.sendMessage(c("§6✦ الإدارة عدّلت نقاط تقدمك إلى " + points));
+                }
+                case "trials" -> {
+                    if (args.length < 4) { adminHelp(sender); return true; }
+                    int trials = Math.max(0, Math.min(TOTAL_TRIALS, Integer.parseInt(args[3])));
+                    data.set(playerPath(target) + ".trialsCompleted", trials);
+                    data.set(playerPath(target) + ".trialProgress", 0);
+                    dirty = true; save();
+                    sender.sendMessage(c("§aتم ضبط الاختبارات المكتملة لـ " + target.getName() + " إلى " + trials + "/" + TOTAL_TRIALS));
+                    target.sendMessage(c("§6✦ الإدارة عدّلت اختباراتك المكتملة إلى " + trials + "/" + TOTAL_TRIALS));
+                }
+                case "mana" -> {
+                    if (args.length < 4 || advanced == null) { adminHelp(sender); return true; }
+                    double amount = Math.max(0.0, Double.parseDouble(args[3]));
+                    if (!advanced.setMana(target, amount)) { sender.sendMessage(c("§cتعذر تعديل المانا. تأكد إن AuraSkills شغال وبيانات اللاعب محمّلة.")); return true; }
+                    sender.sendMessage(c("§aتم ضبط مانا " + target.getName() + " إلى " + String.format(java.util.Locale.US, "%.1f", advanced.mana(target))));
+                    target.sendMessage(c("§b✦ الإدارة عدّلت المانا الخاصة بك."));
+                }
+                case "reputation", "rep" -> {
+                    if (args.length < 4 || advanced == null) { adminHelp(sender); return true; }
+                    int amount = Math.max(0, Integer.parseInt(args[3]));
+                    advanced.setReputation(target, amount);
+                    sender.sendMessage(c("§aتم ضبط سمعة " + target.getName() + " إلى " + amount));
+                    target.sendMessage(c("§d✦ الإدارة عدّلت سمعتك إلى " + amount));
+                }
+                case "forms" -> {
+                    if (args.length < 4 || shapeshift == null) { adminHelp(sender); return true; }
+                    String form = args[3];
+                    if (form.equalsIgnoreCase("all")) {
+                        shapeshift.unlockAllForms(target);
+                        sender.sendMessage(c("§aتم فتح أشكال التحول العشرة لـ " + target.getName()));
+                        target.sendMessage(c("§d✦ الإدارة فتحت لك أشكال التحول العشرة."));
+                    } else if (form.equalsIgnoreCase("clear")) {
+                        shapeshift.clearForms(target);
+                        sender.sendMessage(c("§aتم إغلاق كل أشكال التحول لـ " + target.getName()));
+                        target.sendMessage(c("§cالإدارة أعادت قفل أشكال التحول الخاصة بك."));
+                    } else {
+                        String unlocked = shapeshift.unlockForm(target, form);
+                        if (unlocked == null) sender.sendMessage(c("§cاسم شكل غير معروف. استخدم all أو clear أو اسم الكائن بالإنجليزي."));
+                        else {
+                            sender.sendMessage(c("§aتم فتح شكل " + unlocked + " لـ " + target.getName()));
+                            target.sendMessage(c("§d✦ الإدارة فتحت لك شكل " + unlocked));
+                        }
+                    }
+                }
+                case "reset" -> {
+                    UUID uuid = target.getUniqueId();
+                    data.set("magicGeneration." + uuid, magicGeneration(target) + 1);
+                    int removed = removeMagicItems(target);
+                    int relicsRemoved = advanced != null ? advanced.resetPlayer(target) : 0;
+                    if (shapeshift != null) shapeshift.clearForms(target);
+                    data.set(playerPath(target), null);
+                    dirty = true; save();
+                    sender.sendMessage(c("§aاتعمل ريسيت كامل لـ " + target.getName() + " (أسلحة: " + removed + "، آثار: " + relicsRemoved + ")"));
+                    target.sendMessage(c("§cالإدارة صفّرت نظام قوتك السحرية."));
+                    openGui(target);
+                }
+                default -> adminHelp(sender);
+            }
+        } catch (NumberFormatException ex) {
+            sender.sendMessage(c("§cقيمة رقمية غير صحيحة."));
+        }
+        return true;
+    }
+
     // ------------------------------------------------------------ commands
     @Override
     public boolean onCommand(CommandSender s, Command cmd, String label, String[] a) {
@@ -1812,6 +1989,7 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
             restore(p);
             return true;
         }
+        if (handleAdminCommand(s, a)) return true;
         if (advanced != null && advanced.handleCommand(s, a)) return true;
         // /gmagic
         if (a.length >= 1 && (a[0].equalsIgnoreCase("reset") || a[0].equalsIgnoreCase("level"))) {
@@ -1838,7 +2016,7 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
                 try { lv = Math.max(1, Math.min(MAX_LEVEL, Integer.parseInt(a[2]))); }
                 catch (NumberFormatException ex) { s.sendMessage(c("§cرقم غلط. استخدم رقمًا من 1 إلى 100.")); return true; }
                 data.set(playerPath(t) + ".points", pointsForLevel(lv));
-                data.set(playerPath(t) + ".trialsCompleted", Math.min(TOTAL_TRIALS, (lv - 1) / 5));
+                data.set(playerPath(t) + ".trialsCompleted", Math.min(TOTAL_TRIALS, lv / 5));
                 data.set(playerPath(t) + ".trialProgress", 0);
                 save();
                 s.sendMessage(c("§aتم ضبط مستوى " + t.getName() + " إلى " + lv));
@@ -1847,6 +2025,17 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
             return true;
         }
         if (!(s instanceof Player p)) { s.sendMessage("للاعبين بس."); return true; }
+        if (a.length >= 1 && a[0].equalsIgnoreCase("choose") && p.isOp()) {
+            openGui(p);
+            p.sendMessage(c("§dاختار أي عنصر للتجربة؛ تقدمك المحفوظ مش هيتصفر."));
+            return true;
+        }
+        if (a.length >= 2 && a[0].equalsIgnoreCase("element") && p.isOp()) {
+            Element requested = parseElement(a[1]);
+            if (requested == null) p.sendMessage(c("§cعنصر غير معروف. اكتب /gmagic powers لعرض العناصر."));
+            else choose(p, requested);
+            return true;
+        }
         Element el = getEl(p);
         if (a.length >= 1 && List.of("m", "mv", "move", "power", "skill").contains(a[0].toLowerCase(java.util.Locale.ROOT))) {
             if (el == null) {
