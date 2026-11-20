@@ -85,6 +85,7 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
     // Cooldown مستقل للحركة الأساسية باليد الفارغة حتى لا تتعارض مع Cooldown الأسلحة.
     final Map<UUID, Long> unarmedCd = new HashMap<>();
     AdvancedSystems advanced;
+    PowerMode power;
 
     static Component c(String s) {
         return LegacyComponentSerializer.legacySection().deserialize(s).decoration(TextDecoration.ITALIC, false);
@@ -103,6 +104,8 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
         getServer().getPluginManager().registerEvents(this, this);
         advanced = new AdvancedSystems(this);
         advanced.enable();
+        power = new PowerMode(this);
+        power.enable();
         getCommand("gmagic").setExecutor(this);
         getCommand("grestore").setExecutor(this);
 
@@ -142,6 +145,7 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
 
     @Override
     public void onDisable() {
+        if (power != null) power.shutdown();
         if (advanced != null) advanced.shutdown();
         save();
     }
@@ -165,7 +169,7 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
     }
 
     // Every element now receives its own five-tier weapon set; empty-hand moves remain available too.
-    boolean isUnarmedOnly(Element el) { return false; }
+    boolean isUnarmedOnly(Element el) { return true; }
 
     int pts(Player p) { return data.getInt(playerPath(p) + ".points", 0); }
 
@@ -500,7 +504,7 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
         p.closeInventory();
         if (!isUnarmedOnly(el)) giveWeapon(p, el, 1);
         p.sendMessage(c("§6✦ §fاتعلمت قوة " + el.color + el.ar + "§f! اجمع النقاط من اللعب، واكتشف الاختبارات السرية."));
-        p.sendMessage(c("§eحركة بدون سلاح: اضغط Shift وكليك يمين في الهواء ويدك فاضية."));
+        p.sendMessage(c("§eوضع القوة: اضغط §fF §eللتفعيل | سكرول للتبديل | كليك يمين للاستخدام | كليك شمال للضرب بقوتك."));
         p.sendMessage(c("§7حركتك الحالية: " + el.color + unarmedMoveName(el) + " §8| §7تتطور كل 20 لفل."));
         p.sendMessage(c("§7اكتب §e/gmagic powers §7لرؤية وصف القوى الاثنتي عشرة."));
         p.showTitle(net.kyori.adventure.title.Title.title(
@@ -554,6 +558,8 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
     }
 
     boolean isValidWeapon(Player p, ItemStack it) {
+        // الأسلحة اتلغت في 2.1.0 — أي سلاح قديم مبقاش صالح وبيتشال من الشنطة.
+        if (true) return false;
         W w = info(it);
         if (w == null || it == null || !it.hasItemMeta()) return false;
         var pdc = it.getItemMeta().getPersistentDataContainer();
@@ -856,6 +862,7 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
                 && act != org.bukkit.event.block.Action.RIGHT_CLICK_BLOCK) return;
 
         Player p = e.getPlayer();
+        if (power != null && power.isActive(p)) return;
         ItemStack held = p.getInventory().getItemInMainHand();
 
         // القدرات باليد الفارغة: Shift + Right Click في الهواء أو على بلوك عادي.
@@ -896,6 +903,7 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
     public void onUnarmedEntityClick(org.bukkit.event.player.PlayerInteractEntityEvent e) {
         if (e.getHand() != EquipmentSlot.HAND) return;
         Player p = e.getPlayer();
+        if (power != null && power.isActive(p)) return;
         if (!p.isSneaking() || p.getInventory().getItemInMainHand().getType() != Material.AIR) return;
         if (e.getRightClicked() instanceof org.bukkit.inventory.Merchant) return;
         Element el = getEl(p);
@@ -912,6 +920,7 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
     public void onUnarmedDoubleSneak(org.bukkit.event.player.PlayerToggleSneakEvent e) {
         if (!e.isSneaking()) return;
         Player p = e.getPlayer();
+        if (power != null && power.isActive(p)) return;
         if (p.getInventory().getItemInMainHand().getType() != Material.AIR) return;
         long now = System.currentTimeMillis();
         Long last = lastSneakTap.put(p.getUniqueId(), now);
@@ -1004,6 +1013,7 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
         if (direction.lengthSquared() < 0.001) direction = new Vector(0, 0, 1);
         p.sendActionBar(c(el.color + "✦ " + unarmedMoveName(el) + " §7(بدون سلاح)"));
         world.playSound(start, el.sound, 1.0f, 1.15f);
+        Fx.cast(this, p, el, tier);
 
         inAbility = true;
         try {
@@ -1493,6 +1503,7 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
         }
         // Every weapon skill now spends the real AuraSkills mana pool.
         if (!advanced.consumeMana(p, "weapon", weapon.lvl())) return;
+        Fx.weapon(this, p, weapon.el(), weapon.lvl());
 
         int tier = weapon.lvl();
         long baseCooldown = getConfig().getLong("cooldowns.weapon-base", 8L);
@@ -1771,6 +1782,7 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
             return true;
         }
         if (el == null) { openGui(p); return true; }
+        if (power != null && power.handleCommand(p, a)) return true;
         if (a.length >= 1 && a[0].equalsIgnoreCase("powers")) {
             p.sendMessage(c("§6✦ §eمدارس القوى الاثنتا عشرة في GawharaMagic"));
             for (Element power : Element.values()) {
@@ -1779,13 +1791,7 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
             return true;
         }
         if (a.length >= 1 && a[0].equalsIgnoreCase("weapons")) {
-            int lv = levelOf(p);
-            int given = 0;
-            if (!hasWeapon(p, el, 1)) { giveWeapon(p, el, 1); given++; }
-            for (int l = 2; l <= Math.min(lv, 5); l++) {
-                if (!hasWeapon(p, el, l)) { giveWeapon(p, el, l); given++; }
-            }
-            p.sendMessage(c(given == 0 ? "§7معاك كل أسلحتك المفتوحة." : "§aرجعتلك " + given + " سلاح."));
+            p.sendMessage(c("§7الأسلحة اتلغت. استخدم وضع القوة: §eF §7للتفعيل، وسكرول لتبديل القدرة، وكليك يمين للاستخدام."));
             return true;
         }
         if (a.length >= 1 && a[0].equalsIgnoreCase("task")) {
@@ -1799,7 +1805,8 @@ public class Magic extends JavaPlugin implements Listener, CommandExecutor {
         if (trialReady(p)) p.sendMessage(c("§e✦ لديك اختبار سري يمنع تقدمك — /gmagic task"));
         else if (completedTrials(p) < TOTAL_TRIALS)
             p.sendMessage(c("§7الاختبار السري القادم عند لفل §e" + ((completedTrials(p) + 1) * 5)));
-        p.sendMessage(c("§7/gmagic weapons ← استرجاع الأسلحة المفتوحة"));
+        p.sendMessage(c("§b⚡ وضع القوة: §fF §7تفعيل/إيقاف | §fسكرول §7تبديل | §fكليك يمين §7استخدام | §fكليك شمال §7ضربة بقوتك"));
+        p.sendMessage(c("§7/gwm pw ← تفعيل/إيقاف | /gwm next|prev|use | /gwm ab ← قدراتك"));
         p.sendMessage(c("§7/gmagic powers ← عرض القوى الاثنتي عشرة"));
         p.sendMessage(c("§7/gmagic task ← تلميح الاختبار السري"));
         p.sendMessage(c("§b/gwm m §7← حركة العنصر بدون سلاح | أو Shift + كليك يمين في الهواء/بلوك عادي"));

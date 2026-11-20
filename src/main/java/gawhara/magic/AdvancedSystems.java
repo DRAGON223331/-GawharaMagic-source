@@ -177,6 +177,32 @@ public final class AdvancedSystems implements Listener {
         return true;
     }
 
+    /** خصم مانا مباشر (بدون مضاعف التير) — بيستخدمه وضع القوة. */
+    boolean spendMana(Player player, double cost) {
+        SkillsUser user = auraUser(player);
+        if (user == null) {
+            player.sendActionBar(Magic.c("§cAuraSkills غير جاهز؛ لا يمكن استخدام قدرات المانا الآن."));
+            return false;
+        }
+        if (awakeningUntil.getOrDefault(player.getUniqueId(), 0L) > System.currentTimeMillis()) {
+            cost *= plugin.getConfig().getDouble("awakening.mana-cost-multiplier", 0.85);
+        }
+        double cur = user.getMana();
+        if (cur + 0.0001 < cost) {
+            player.sendActionBar(Magic.c("§cمانا غير كافية: تحتاج " + String.format(Locale.US, "%.1f", cost)
+                    + " ولديك " + String.format(Locale.US, "%.1f", cur)));
+            return false;
+        }
+        return user.consumeMana(cost);
+    }
+
+    /** إرجاع مانا (لو القدرة فشلت قبل ما تتنفذ). */
+    void giveMana(Player player, double amount) {
+        SkillsUser user = auraUser(player);
+        if (user == null) return;
+        user.setMana(Math.min(user.getMaxMana(), user.getMana() + amount));
+    }
+
     private boolean spendBoth(Player first, Player second, double cost) {
         SkillsUser a = auraUser(first);
         SkillsUser b = auraUser(second);
@@ -302,6 +328,7 @@ public final class AdvancedSystems implements Listener {
         Location location = player.getLocation().clone();
         magic.ring(location, element.particle, null, radius, 12);
         magic.spiral(player, element.particle, 24);
+        Fx.burst(plugin, player, element, radius, radius >= 7.5);
         player.getWorld().spawnParticle(Particle.END_ROD, location.clone().add(0, 1, 0), 35,
                 radius / 4, 0.7, radius / 4, 0.04);
         player.getWorld().playSound(location, element.sound, 1.0f, 0.9f);
@@ -372,6 +399,7 @@ public final class AdvancedSystems implements Listener {
         guardUntil.put(player.getUniqueId(), System.currentTimeMillis() + duration);
         Element element = magic.getEl(player);
         magic.ring(player.getLocation(), element.particle, null, 2.1 + tier * 0.35, 9);
+        Fx.guard(plugin, player, element);
         player.getWorld().spawnParticle(Particle.END_ROD, player.getLocation().add(0, 1, 0), 22, 0.6, 0.8, 0.6, 0.02);
         player.playSound(player.getLocation(), Sound.ITEM_SHIELD_BLOCK, 0.8f, 1.3f);
         player.sendActionBar(Magic.c("§bدرع " + element.ar + " §7نشط لمدة " + (duration / 1000.0) + " ثانية"));
@@ -986,9 +1014,13 @@ public final class AdvancedSystems implements Listener {
                 continue;
             }
             Element element = magic.getEl(player);
-            if (element != null && Math.floorMod(now / 250L, 2) == 0) {
-                player.getWorld().spawnParticle(element.particle, player.getLocation().add(0, 1, 0), 3,
-                        0.25, 0.5, 0.25, 0.01);
+            if (element != null) Fx.aura(player, element, now / 500L);
+        }
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            Long awake = awakeningUntil.get(player.getUniqueId());
+            Element element = magic.getEl(player);
+            if (awake != null && awake > now && element != null && !transformationUntil.containsKey(player.getUniqueId())) {
+                Fx.aura(player, element, now / 500L);
             }
         }
     }

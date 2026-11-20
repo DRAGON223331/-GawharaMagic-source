@@ -1,3 +1,28 @@
+# GawharaMagic 2.1.0 — وضع القوة (بدون أسلحة)
+
+الأسلحة السحرية اتلغت بالكامل (أي سلاح قديم بيتشال من الشنطة أول ما اللاعب يدخل). الجديد هو **وضع القوة**:
+
+| الزرار | الوظيفة |
+|---|---|
+| F (واليد الأساسية فاضية) | تشغيل / إيقاف وضع القوة (بدل C). لو ماسك حاجة، F بينقلها بين الأيدي عادي |
+| سكرول الماوس | تبديل القدرة (بدل X) — 3 قدرات لكل عنصر |
+| كليك يمين | استخدام القدرة المختارة |
+| كليك شمال على هدف | ضربة بقوتك: ضرر زيادة + تأثير العنصر بمانا 1.5 (بدل G) |
+| Shift + F (يد فاضية) | درع الحماية (زي ما كان) |
+
+> **ليه مش G / C / X؟** سيرفر Paper مبيشوفش غير أزرار معينة (F، Shift، السكرول، الكليكات). أزرار زي G و C و X بتحتاج مود على جهاز اللاعب نفسه. الأوامر `/gwm pw` و`/gwm next` و`/gwm prev` و`/gwm use` شغالة كبدائل.
+
+ملحوظة: وقت التفعيل بيتحط "قلب القوة" في اليد التانية (عشان كليك يمين يشتغل واليد فاضية)، وبيرجع اللي كان فيها أول ما توقف الوضع أو تخرج أو تموت.
+
+قدرات كل عنصر (مانا قليلة 3–8، وتتعدل من `config.yml` تحت `power:`): `/gwm ab` بيعرضها. أمثلة:
+- النار: حلقة اللهب (نار تنتشر حواليك) / كرة النار / طيران النار.
+- الظلام: خطوة الظل (انتقال لأقرب مكان مظلم) / ضربة الظلام / عباءة الظلام — كلهم أقوى كل ما المكان أضلم.
+- البرق، الماء، الأرض، الريح، الجليد، المعدن، الطبيعة، النور، الصوت، الكريستال: 3 قدرات لكل واحد.
+
+**البناء:** `mvn -B clean package` ← `target/GawharaMagic.jar` (أو GitHub Actions الموجود في `.github/workflows`).
+
+---
+
 # GawharaMagic 2.0.3
 
 GawharaMagic adds 12 elemental schools, 100 levels, secret trials every 5 levels, five distinct weapon tiers per element, empty-hand moves, and optional RPG progression systems.
@@ -150,3 +175,22 @@ Weapon skills cost AuraSkills mana (`mana.weapon`, default 18) and have tier-sca
 ## 2.0.3 — Per-element weapon identities
 
 Each of the 12 schools now has five distinct weapon names, five distinct skill names, and five tier descriptions. The weapon ability dispatcher is element-specific: fire uses flame arcs and inferno bursts; water uses pressure lances and tidal waves; earth uses stone spikes and quakes; wind uses gusts and tornado movement; lightning uses five separate lightning techniques; shadow uses eclipse and phantom-step skills; ice uses freeze waves and blizzards; metal uses magnetic pulls and steel guards; nature uses roots and healing blooms; light uses radiant flashes; sound uses shockwaves and echo pulses; crystal uses shards and prism cages. All active weapon abilities continue to spend AuraSkills mana and use tier-scaled cooldowns.
+
+## Signature effects (per element)
+
+Every element has its own particle shape and texture (`Fx.java`), used by the empty-hand base move, weapon skills, Spin, Guard, Ultimate, Awakening and Transformation auras:
+
+| Element | Look |
+|---|---|
+| Fire | twin flame helix rising + ember ring (blue soul-fire at high tier) |
+| Water | two orbiting water ribbons + bubbles |
+| Earth | ground crack line with erupting rock shards + stomp ring |
+| Wind | widening tornado cone + expanding gust rings |
+| Lightning | jagged sky-to-player bolts + crackling arcs |
+| Shadow | collapsing dark ring + orbiting shadow orbs + soul smoke |
+| Ice | rotating six-armed snowflake on the ground + falling snow |
+| Metal | counter-rotating steel rings that clamp in, then spark outward |
+| Nature | growing vines that bloom into flowers |
+| Light | sun-star rays + rotating halo |
+| Sound | concentric sound-wave rings travelling forward |
+| Crystal | rotating glowing octahedron |
